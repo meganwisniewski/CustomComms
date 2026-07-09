@@ -1,0 +1,14 @@
+services:
+  hub:
+    build: ./hub
+    image: customcomms-hub:latest
+    container_name: customcomms-hub
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - hub-data:/data
+
+volumes:
+  hub-data:
