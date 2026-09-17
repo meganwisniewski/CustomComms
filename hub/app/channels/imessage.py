@@ -31,13 +31,16 @@ class IMessageChannel(Channel):
 
     async def send(self, to: str | None, body: str, *, title: str | None = None) -> SendResult:
         if not self.configured:
+            # Waiting on config counts as transient — keep the message queued.
             return SendResult(
                 ok=False,
+                transient=True,
                 error="imessage not configured (BLUEBUBBLES_URL / BLUEBUBBLES_PASSWORD missing)",
             )
         guid = to or self.default_guid
         if not guid:
-            return SendResult(ok=False, error="imessage send requires 'to' (a chat GUID)")
+            return SendResult(ok=False, transient=False,
+                              error="imessage send requires 'to' (a chat GUID)")
 
         # BlueBubbles expects a tempGuid so it can de-dupe retries. It's derived
         # deterministically from the target + body to stay idempotent per message.
@@ -57,9 +60,14 @@ class IMessageChannel(Channel):
             provider_id = (data.get("data") or {}).get("guid")
             return SendResult(ok=True, provider_id=provider_id)
         except httpx.HTTPStatusError as exc:
-            return SendResult(ok=False, error=f"bluebubbles http {exc.response.status_code}: {exc.response.text[:200]}")
+            # 4xx = permanent (bad chat GUID, auth); 5xx = transient (server hiccup).
+            transient = exc.response.status_code >= 500
+            return SendResult(ok=False, transient=transient,
+                              error=f"bluebubbles http {exc.response.status_code}: {exc.response.text[:200]}")
         except httpx.HTTPError as exc:
-            return SendResult(ok=False, error=f"bluebubbles request failed: {exc}")
+            # Connection refused/timeout — the Mac is asleep or BlueBubbles is down.
+            # This is the store-and-forward case: keep it queued and retry.
+            return SendResult(ok=False, transient=True, error=f"bluebubbles unreachable: {exc}")
 
     async def health(self) -> str:
         if not self.configured:

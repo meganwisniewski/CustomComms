@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     hub_database_path: str = "/data/hub.db"
     hub_api_token: str = ""
 
+    # Delivery queue / retry (store-and-forward)
+    hub_poll_interval_seconds: float = 5.0   # how often the worker scans for due messages
+    hub_max_attempts: int = 12               # give up after this many *permanent* failures
+    hub_backoff_base_seconds: float = 5.0    # first retry delay
+    hub_backoff_max_seconds: float = 300.0   # cap; a sleeping Mac is retried at this cadence
+
     # iMessage / BlueBubbles
     bluebubbles_url: str = ""
     bluebubbles_password: str = ""

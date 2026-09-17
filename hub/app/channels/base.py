@@ -9,6 +9,12 @@ class SendResult:
     ok: bool
     provider_id: str | None = None
     error: str | None = None
+    # transient=True means "couldn't deliver right now, but retrying later may work"
+    # (channel unreachable/unconfigured, server 5xx, timeout). The queue keeps such
+    # messages and retries indefinitely — this is what lets an iMessage wait for a
+    # sleeping Mac. transient=False means a permanent rejection (bad recipient, 4xx)
+    # that counts toward max_attempts and eventually fails.
+    transient: bool = False
 
 
 @dataclass

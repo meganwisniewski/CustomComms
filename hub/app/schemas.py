@@ -15,13 +15,11 @@ class SendRequest(BaseModel):
     title: str | None = Field(None, description="Optional title (used by push channels).")
 
 
-class SendResponse(BaseModel):
+class EnqueueResponse(BaseModel):
     id: int
     channel: str
     to: str | None
-    status: str
-    provider_id: str | None = None
-    error: str | None = None
+    status: str = "queued"
 
 
 class MessageRecord(BaseModel):
@@ -30,10 +28,14 @@ class MessageRecord(BaseModel):
     channel: str
     peer: str | None
     body: str
+    title: str | None = None
     status: str
+    attempts: int
+    next_attempt_at: str | None = None
     provider_id: str | None
     error: str | None
     created_at: str
+    updated_at: str
 
 
 class ChannelInfo(BaseModel):
@@ -44,3 +46,4 @@ class ChannelInfo(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     channels: dict[str, str]
+    queued: int

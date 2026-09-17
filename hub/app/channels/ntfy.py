@@ -1,7 +1,7 @@
 """ntfy push channel — Pi-native, no Apple hardware required.
 
 Sends to a topic on an ntfy server (ntfy.sh or self-hosted). ``to`` is the
-topic name; falls back to nothing (caller must supply a topic).
+topic name.
 """
 from __future__ import annotations
 
@@ -32,9 +32,10 @@ class NtfyChannel(Channel):
 
     async def send(self, to: str | None, body: str, *, title: str | None = None) -> SendResult:
         if not self.configured:
-            return SendResult(ok=False, error="ntfy not configured (NTFY_URL missing)")
+            return SendResult(ok=False, transient=True, error="ntfy not configured (NTFY_URL missing)")
         if not to:
-            return SendResult(ok=False, error="ntfy send requires 'to' (the topic name)")
+            # A missing topic is a caller mistake, not something a retry fixes.
+            return SendResult(ok=False, transient=False, error="ntfy send requires 'to' (the topic name)")
         url = f"{self.base_url}/{to}"
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -42,8 +43,14 @@ class NtfyChannel(Channel):
             resp.raise_for_status()
             data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
             return SendResult(ok=True, provider_id=str(data.get("id")) if data.get("id") else None)
+        except httpx.HTTPStatusError as exc:
+            # 4xx = permanent (bad request); 5xx = transient (server hiccup).
+            transient = exc.response.status_code >= 500
+            return SendResult(ok=False, transient=transient,
+                              error=f"ntfy http {exc.response.status_code}: {exc.response.text[:200]}")
         except httpx.HTTPError as exc:
-            return SendResult(ok=False, error=f"ntfy request failed: {exc}")
+            # Connection/timeout — server unreachable; retry later.
+            return SendResult(ok=False, transient=True, error=f"ntfy request failed: {exc}")
 
     async def health(self) -> str:
         if not self.configured:
