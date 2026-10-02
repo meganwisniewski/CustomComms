@@ -150,3 +150,34 @@ needed, nothing lost.
   login (its settings have a toggle) so a reboot brings it back automatically.
 - **macOS updates:** when the mini reboots for an update, queued messages wait
   and flush afterward — that's the whole point of the retry queue.
+
+---
+
+## Troubleshooting
+
+### iMessage / Apple ID won't connect on your home network, but works on a phone hotspot
+
+**Symptom:** Safari and general web browsing work fine, but Apple ID sign-in
+fails ("error connecting to the Apple ID server," or a *correct* password is
+rejected as wrong), and iMessage sends spin forever. Everything works the moment
+you switch the Mac to a phone hotspot.
+
+**Cause: broken IPv6.** Some gateways — notably **T-Mobile Home Internet**
+(default admin `192.168.12.1`) — hand LAN devices a non-routable ULA IPv6
+address (starts with `fd…`, e.g. `fdfe:…`). Apple's push/auth services prefer
+IPv6 and stall on that dead path, while browsers quietly fall back to IPv4 and
+seem fine. Changing DNS (e.g. to 1.1.1.1/8.8.8.8) does **nothing**, because it
+isn't a DNS problem.
+
+**Fix (per-device, reliable):**
+1. System Preferences → Network → your connection → **Advanced → TCP/IP**.
+2. **Configure IPv6 → "Link-local only"** → OK → Apply.
+3. **Reboot the mini.** The push daemon (`apsd`) caches the broken connection, so
+   the change only fully takes effect after a restart — it can look like it
+   didn't work until you reboot.
+
+**Network-wide alternative:** disable IPv6 on the gateway itself (in its admin
+UI / the carrier's app). Many T-Mobile gateways don't expose an IPv6 toggle, in
+which case the per-device setting above is the dependable fix. Since the mini is
+on static Ethernet anyway, the per-device fix persists across reboots and is
+plenty for a single always-on box.
