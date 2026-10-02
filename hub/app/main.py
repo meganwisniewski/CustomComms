@@ -112,8 +112,17 @@ async def get_message(msg_id: int) -> MessageRecord:
     return MessageRecord(**row)
 
 
-@app.post("/webhooks/{channel_name}", dependencies=[Depends(require_token)])
-async def inbound_webhook(channel_name: str, request: Request) -> dict:
+@app.post("/webhooks/{channel_name}")
+async def inbound_webhook(
+    channel_name: str,
+    request: Request,
+    x_hub_token: str | None = Header(default=None),
+    token: str | None = None,
+) -> dict:
+    # Webhook senders (e.g. BlueBubbles) can't set custom headers, so accept the
+    # token either in the X-Hub-Token header or as a ?token= query parameter.
+    if settings.hub_api_token and settings.hub_api_token not in (x_hub_token, token):
+        raise HTTPException(status_code=401, detail="invalid or missing token (X-Hub-Token header or ?token=)")
     channel = registry.get(channel_name)
     if channel is None:
         raise HTTPException(status_code=404, detail=f"channel '{channel_name}' not enabled")

@@ -91,9 +91,11 @@ System Settings (or Terminal):
    http://<pi-ip>:8000/webhooks/imessage
    ```
    Subscribe it to "New Messages" so inbound iMessages land in the hub log.
-   (If you set `HUB_API_TOKEN`, BlueBubbles can't add the `X-Hub-Token` header, so
-   either leave the webhook path unauthenticated on your LAN or front it with a
-   small proxy — see the note at the bottom.)
+   If you set `HUB_API_TOKEN`, append it to the URL as a query parameter (webhook
+   senders can't add custom headers):
+   ```
+   http://<pi-ip>:8000/webhooks/imessage?token=<your HUB_API_TOKEN>
+   ```
 
 ## Phase 6 — Point the hub at the mini (5 min)
 
@@ -141,11 +143,10 @@ needed, nothing lost.
 
 ### Notes
 
-- **Webhook auth:** the hub's `/webhooks/*` respects `HUB_API_TOKEN`, but
-  BlueBubbles webhooks can't send custom headers. On a trusted LAN the simplest
-  path is to leave the token unset (writes are LAN-only anyway). If you want the
-  send API authed but the webhook open, that's a small future tweak (per-route
-  token exemption) — open an issue and we'll add it.
+- **Webhook auth:** the hub's `/webhooks/*` accepts the token either in the
+  `X-Hub-Token` header or as a `?token=` query parameter. Since BlueBubbles can't
+  set custom headers, use the query-parameter form in its webhook URL. On a
+  trusted LAN you can also just leave `HUB_API_TOKEN` unset.
 - **Keep-alive:** BlueBubbles must be running for delivery. Set it to launch at
   login (its settings have a toggle) so a reboot brings it back automatically.
 - **macOS updates:** when the mini reboots for an update, queued messages wait
