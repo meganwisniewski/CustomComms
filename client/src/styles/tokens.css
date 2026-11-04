@@ -1,0 +1,73 @@
+/* CustomComms design tokens — ported from the approved mocks.
+   Calm, low-stimulation palette. Light / dark / calm (grayscale). */
+:root {
+  --bg: #F4F2EE;
+  --surface: #FFFFFF;
+  --surface-2: #FBF9F6;
+  --surface-3: #EFEBE4;
+  --fg: #23262C;
+  --muted: #726C64;
+  --faint: #A39C92;
+  --border: #E7E2D9;
+  --accent: #9A6A86;
+  --accent-fg: #FFFFFF;
+  --accent-soft: #EFE4EA;
+  --info: #5E7E86;
+  --shadow: 0 1px 2px rgba(30, 25, 20, 0.035);
+  --shadow-lift: 0 3px 12px rgba(30, 25, 20, 0.07);
+  --radius: 16px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171B;
+    --surface: #1D2025;
+    --surface-2: #22262C;
+    --surface-3: #2A2E36;
+    --fg: #ECEAE6;
+    --muted: #9BA1AB;
+    --faint: #6D747E;
+    --border: #2E333B;
+    --accent: #C892AC;
+    --accent-fg: #1A1013;
+    --accent-soft: #322530;
+    --info: #8FB0B8;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-lift: 0 8px 18px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171B;
+  --surface: #1D2025;
+  --surface-2: #22262C;
+  --surface-3: #2A2E36;
+  --fg: #ECEAE6;
+  --muted: #9BA1AB;
+  --faint: #6D747E;
+  --border: #2E333B;
+  --accent: #C892AC;
+  --accent-fg: #1A1013;
+  --accent-soft: #322530;
+  --info: #8FB0B8;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lift: 0 8px 18px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+/* Calm mode: grayscale + lower contrast, iOS-style low stimulation. */
+:root[data-calm="on"] {
+  --accent: #7E8A90;
+  --accent-soft: color-mix(in srgb, #7E8A90 14%, transparent);
+  --shadow: 0 0 0 1px var(--border);
+  --shadow-lift: 0 0 0 1px var(--accent);
+}
+:root[data-calm="on"] .app,
+:root[data-calm="on"] .overlay-root {
+  filter: saturate(0) contrast(0.94);
+}
+:root[data-calm="on"] * {
+  transition: none !important;
+  animation: none !important;
+}
