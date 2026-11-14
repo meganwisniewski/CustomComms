@@ -34,11 +34,12 @@ Custom client ──▶ Hub (FastAPI, Docker on the Pi) ──Tailscale──▶
     `restart: unless-stopped` · `init: true` (tini reaps zombies).
   - **Tailscale:** key expiry disabled on Pi + mini (root cause of the
     Nov 2026 outage).
+- **M2 — Rich sending.** Tapbacks, inline (threaded) replies, and screen/bubble
+  effects via the BlueBubbles Private API — all through the store-and-forward
+  queue. Verified live on-device and against the official v1.9.11 docs.
+  (Edit/unsend needs macOS Ventura+; the mini runs Monterey, so it's out of scope.)
 
 ### 🔜 Next
-- **M2 — Rich sending.** Tapbacks, replies, and effects via the BlueBubbles
-  Private API. (Edit/unsend needs macOS Ventura+; the mini runs Monterey, so
-  that part is out of scope until/unless the OS changes.)
 - **M3 — Hub ↔ client API.** Conversation list, thread history, contacts, and
   live updates for the client to consume.
 - **M4 — Client MVP.** Wire the React client to real hub data; deploy on the
