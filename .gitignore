@@ -10,8 +10,9 @@ __pycache__/
 .venv/
 venv/
 
-# data
-data/
+# data (hub SQLite lives in a Docker volume; only ignore a root-level data dir,
+# NOT client/src/data which holds real source)
+/data/
 *.db
 *.sqlite
 *.sqlite3
