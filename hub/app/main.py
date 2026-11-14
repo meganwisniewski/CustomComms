@@ -3,7 +3,8 @@
 One place to send a message. POST to /messages/send and the hub *queues* it;
 a background worker delivers it to the named channel with retries, so a message
 survives the target being temporarily unreachable (e.g. the iMessage Mac asleep
-or rebooting for updates). Inbound bridge events land on /webhooks/{channel}.
+or rebooting for updates). Reactions queue the same way via /messages/react.
+Inbound bridge events land on /webhooks/{channel}.
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from .schemas import (
     EnqueueResponse,
     HealthResponse,
     MessageRecord,
+    ReactRequest,
     SendRequest,
 )
 
@@ -61,7 +63,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CustomComms — Communication Hub",
-    version="0.2.0",
+    version="0.3.0",
     summary="Channel-agnostic messaging hub with a store-and-forward delivery queue.",
     lifespan=lifespan,
 )
@@ -93,8 +95,30 @@ async def send_message(req: SendRequest) -> EnqueueResponse:
             status_code=404,
             detail=f"channel '{req.channel}' not enabled. Enabled: {', '.join(registry.names()) or '(none)'}",
         )
-    msg_id = db.enqueue(channel=req.channel, peer=req.to, body=req.body, title=req.title)
+    # Rich options ride along in `extras`; a plain text send stores no extras.
+    extras = {k: v for k, v in {
+        "reply_to": req.reply_to,
+        "effect": req.effect,
+        "subject": req.subject,
+    }.items() if v}
+    msg_id = db.enqueue(channel=req.channel, peer=req.to, body=req.body,
+                        title=req.title, extras=extras or None)
     # Delivered asynchronously by the worker; poll GET /messages/{id} for status.
+    return EnqueueResponse(id=msg_id, channel=req.channel, to=req.to, status="queued")
+
+
+@app.post("/messages/react", response_model=EnqueueResponse, status_code=202,
+          dependencies=[Depends(require_token)])
+async def react_message(req: ReactRequest) -> EnqueueResponse:
+    """Queue a tapback on an existing message (iMessage Private API)."""
+    if registry.get(req.channel) is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"channel '{req.channel}' not enabled. Enabled: {', '.join(registry.names()) or '(none)'}",
+        )
+    extras = {"selected_guid": req.target, "reaction": req.reaction, "part_index": req.part_index}
+    body = f"[reaction {req.reaction} -> {req.target}]"
+    msg_id = db.enqueue(channel=req.channel, peer=req.to, body=body, kind="react", extras=extras)
     return EnqueueResponse(id=msg_id, channel=req.channel, to=req.to, status="queued")
 
 

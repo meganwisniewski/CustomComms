@@ -34,14 +34,25 @@ class Stub(Channel):
     def __init__(self, result: SendResult, configured: bool = True):
         self._r = result
         self._configured = configured
+        self.sent: list[dict] = []
+        self.reacted: list[dict] = []
 
     @property
     def configured(self) -> bool:
         return self._configured
 
-    async def send(self, to, body, *, title=None):
+    async def send(self, to, body, *, title=None, reply_to=None, effect=None, subject=None):
         if not self._configured:
             raise AssertionError("send() must not be called on an unconfigured channel")
+        self.sent.append({"to": to, "body": body, "reply_to": reply_to,
+                          "effect": effect, "subject": subject})
+        return self._r
+
+    async def react(self, to, selected_guid, reaction, *, part_index=0):
+        if not self._configured:
+            raise AssertionError("react() must not be called on an unconfigured channel")
+        self.reacted.append({"to": to, "selected_guid": selected_guid,
+                            "reaction": reaction, "part_index": part_index})
         return self._r
 
 
@@ -80,6 +91,24 @@ async def main():
     assert await deliver(db.get(mid), Stub(SendResult(ok=True), configured=False)) == "queued"
     mid = db.enqueue(channel="gone", peer="x", body="none")
     assert await deliver(db.get(mid), None) == "queued"
+
+    # rich send -> reply_to/effect/subject forwarded to channel.send, not react
+    mid = db.enqueue(channel="stub", peer="chat1", body="hi",
+                     extras={"reply_to": "G1", "effect": "slam", "subject": "Hey"})
+    ch = Stub(SendResult(ok=True, provider_id="p2"))
+    assert await deliver(db.get(mid), ch) == "sent"
+    assert ch.sent == [{"to": "chat1", "body": "hi", "reply_to": "G1",
+                        "effect": "slam", "subject": "Hey"}]
+    assert ch.reacted == []
+
+    # reaction -> dispatched to channel.react with the stored details
+    mid = db.enqueue(channel="stub", peer="chat1", body="[reaction]", kind="react",
+                     extras={"selected_guid": "G9", "reaction": "love", "part_index": 0})
+    ch = Stub(SendResult(ok=True, provider_id="p3"))
+    assert await deliver(db.get(mid), ch) == "sent"
+    assert ch.reacted == [{"to": "chat1", "selected_guid": "G9",
+                          "reaction": "love", "part_index": 0}]
+    assert ch.sent == []
 
     print("ALL DELIVERY TESTS PASSED")
 

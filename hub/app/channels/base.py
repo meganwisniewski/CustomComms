@@ -27,7 +27,7 @@ class InboundMessage:
 class Channel:
     """Base class for a messaging channel.
 
-    Subclasses set ``name`` and implement ``send``. ``health`` and
+    Subclasses set ``name`` and implement ``send``. ``react``, ``health`` and
     ``parse_inbound`` are optional overrides.
     """
 
@@ -38,8 +38,35 @@ class Channel:
         """True when the channel has everything it needs to operate."""
         return True
 
-    async def send(self, to: str | None, body: str, *, title: str | None = None) -> SendResult:
+    async def send(
+        self,
+        to: str | None,
+        body: str,
+        *,
+        title: str | None = None,
+        reply_to: str | None = None,
+        effect: str | None = None,
+        subject: str | None = None,
+    ) -> SendResult:
+        """Send a message. ``reply_to``/``effect``/``subject`` are rich options
+        that a channel may support (iMessage) or ignore (push)."""
         raise NotImplementedError
+
+    async def react(
+        self,
+        to: str | None,
+        selected_guid: str,
+        reaction: str,
+        *,
+        part_index: int = 0,
+    ) -> SendResult:
+        """Add or remove a tapback on an existing message. Channels that don't
+        support reactions return a permanent error."""
+        return SendResult(
+            ok=False,
+            transient=False,
+            error=f"channel '{self.name}' does not support reactions",
+        )
 
     async def health(self) -> str:
         """Return 'ok', 'unconfigured', or a short error string."""

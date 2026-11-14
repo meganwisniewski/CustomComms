@@ -30,7 +30,10 @@ class NtfyChannel(Channel):
             headers["Title"] = title
         return headers
 
-    async def send(self, to: str | None, body: str, *, title: str | None = None) -> SendResult:
+    async def send(self, to: str | None, body: str, *, title: str | None = None,
+                   reply_to: str | None = None, effect: str | None = None,
+                   subject: str | None = None) -> SendResult:
+        # reply_to/effect/subject are iMessage-only rich options; ntfy ignores them.
         if not self.configured:
             return SendResult(ok=False, transient=True, error="ntfy not configured (NTFY_URL missing)")
         if not to:

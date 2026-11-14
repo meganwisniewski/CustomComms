@@ -13,6 +13,28 @@ class SendRequest(BaseModel):
     )
     body: str = Field(..., min_length=1, description="Message text.")
     title: str | None = Field(None, description="Optional title (used by push channels).")
+    # iMessage rich options (Private API). Ignored by channels that don't support them.
+    reply_to: str | None = Field(
+        None, description="iMessage: GUID of the message to reply to inline."
+    )
+    effect: str | None = Field(
+        None, description="iMessage: screen/bubble effect, e.g. 'slam', 'confetti', 'gentle'."
+    )
+    subject: str | None = Field(
+        None, description="iMessage: bold subject line shown above the message body."
+    )
+
+
+class ReactRequest(BaseModel):
+    channel: str = Field(..., description="Channel name, e.g. 'imessage'.")
+    to: str | None = Field(None, description="Chat GUID the target message belongs to.")
+    target: str = Field(..., description="GUID of the message to react to (selectedMessageGuid).")
+    reaction: str = Field(
+        ...,
+        description="One of: love, like, dislike, laugh, emphasize, question. "
+        "Prefix with '-' to remove (e.g. '-love').",
+    )
+    part_index: int = Field(0, description="Message part to react to (default 0).")
 
 
 class EnqueueResponse(BaseModel):
@@ -34,6 +56,8 @@ class MessageRecord(BaseModel):
     next_attempt_at: str | None = None
     provider_id: str | None
     error: str | None
+    kind: str = "send"
+    extras: str | None = None
     created_at: str
     updated_at: str
 

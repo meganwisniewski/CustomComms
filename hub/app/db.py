@@ -4,6 +4,10 @@ Outbound messages are enqueued (status='queued') and delivered by a background
 worker with retries; inbound messages are logged directly (status='received').
 Stdlib sqlite3 only, serialized through a lock — plenty for personal-comms volume.
 
+Each outbound row carries a ``kind`` ('send' | 'react') and optional ``extras``
+(a JSON blob) holding rich-send options (reply_to/effect/subject) or the
+reaction details, so rich actions ride the same store-and-forward queue.
+
 Status lifecycle for outbound:
     queued  -> sent      (delivered)
     queued  -> queued    (retry scheduled; next_attempt_at in the future)
@@ -11,6 +15,7 @@ Status lifecycle for outbound:
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 import threading
 from datetime import datetime, timedelta, timezone
@@ -33,12 +38,20 @@ CREATE TABLE IF NOT EXISTS messages (
     next_attempt_at TEXT,                      -- ISO ts; when the worker may next try
     provider_id     TEXT,
     error           TEXT,
+    kind            TEXT NOT NULL DEFAULT 'send',  -- 'send' | 'react'
+    extras          TEXT,                          -- JSON: rich-send / reaction options
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_messages_due
     ON messages(status, next_attempt_at);
 """
+
+# Columns added after the original schema shipped; applied to existing DBs on init.
+_MIGRATIONS = [
+    ("kind", "ALTER TABLE messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'send'"),
+    ("extras", "ALTER TABLE messages ADD COLUMN extras TEXT"),
+]
 
 
 def init(db_path: str) -> None:
@@ -48,7 +61,16 @@ def init(db_path: str) -> None:
     _conn.row_factory = sqlite3.Row
     with _lock:
         _conn.executescript(_SCHEMA)
+        _migrate()
         _conn.commit()
+
+
+def _migrate() -> None:
+    """Add columns missing from an older database (idempotent)."""
+    existing = {r["name"] for r in _c().execute("PRAGMA table_info(messages)").fetchall()}
+    for col, ddl in _MIGRATIONS:
+        if col not in existing:
+            _c().execute(ddl)
 
 
 def _c() -> sqlite3.Connection:
@@ -67,18 +89,20 @@ def _iso(dt: datetime) -> str:
 
 # --- writes -----------------------------------------------------------------
 
-def enqueue(*, channel: str, peer: str | None, body: str, title: str | None = None) -> int:
-    """Add an outbound message to the queue, due immediately."""
+def enqueue(*, channel: str, peer: str | None, body: str, title: str | None = None,
+            kind: str = "send", extras: dict[str, Any] | None = None) -> int:
+    """Add an outbound message (or reaction) to the queue, due immediately."""
     now = _iso(_now())
+    extras_json = json.dumps(extras) if extras else None
     with _lock:
         cur = _c().execute(
             """
             INSERT INTO messages
                 (direction, channel, peer, body, title, status, attempts,
-                 next_attempt_at, created_at, updated_at)
-            VALUES ('out', ?, ?, ?, ?, 'queued', 0, ?, ?, ?)
+                 next_attempt_at, kind, extras, created_at, updated_at)
+            VALUES ('out', ?, ?, ?, ?, 'queued', 0, ?, ?, ?, ?, ?)
             """,
-            (channel, peer, body, title, now, now, now),
+            (channel, peer, body, title, now, kind, extras_json, now, now),
         )
         _c().commit()
         return int(cur.lastrowid)
