@@ -5,8 +5,12 @@ services:
     container_name: customcomms-hub
     restart: unless-stopped
     env_file: .env
-    ports:
-      - "8000:8000"
+    # Host networking: the hub reaches the BlueBubbles Mac over Tailscale
+    # (tailscale0) directly, with no Docker bridge NAT/forwarding in between.
+    # This survives `tailscaled` restarts and reboots — the bridge-mode
+    # container-to-tailnet path breaks when Tailscale reshuffles iptables.
+    # The app binds 0.0.0.0:8000 on the host, so inbound webhooks still land.
+    network_mode: host
     volumes:
       - hub-data:/data
 
