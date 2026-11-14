@@ -11,6 +11,10 @@ services:
     # container-to-tailnet path breaks when Tailscale reshuffles iptables.
     # The app binds 0.0.0.0:8000 on the host, so inbound webhooks still land.
     network_mode: host
+    # Run tini as PID 1 so zombie processes get reaped. Without this, the
+    # Docker HEALTHCHECK spawns a python process every 30s that uvicorn (the
+    # container's PID 1) never reaps, so <defunct> entries pile up indefinitely.
+    init: true
     volumes:
       - hub-data:/data
 
