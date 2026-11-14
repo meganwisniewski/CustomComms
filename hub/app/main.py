@@ -17,11 +17,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from . import db
+from . import db, people as people_svc
 from .channels.registry import registry
 from .config import settings
 from .convo import clean_contact, clean_conversation, clean_message, contacts_map
@@ -29,8 +29,12 @@ from .delivery import deliver
 from .schemas import (
     ChannelInfo,
     EnqueueResponse,
+    Handle,
     HealthResponse,
     MessageRecord,
+    Person,
+    PersonCreate,
+    PersonUpdate,
     ReactRequest,
     SendRequest,
 )
@@ -218,6 +222,67 @@ async def contacts() -> list[dict]:
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"bluebubbles read failed: {exc}")
     return [clean_contact(c) for c in raw or []]
+
+
+# --- people: hub-owned, editable contact records (source of truth) ----------
+
+@app.get("/people", response_model=list[Person])
+async def list_people() -> list[Person]:
+    return people_svc.list_all()
+
+
+@app.post("/people", response_model=Person, status_code=201,
+          dependencies=[Depends(require_token)])
+async def create_person(data: PersonCreate) -> Person:
+    return people_svc.create(data)
+
+
+@app.post("/people/import", dependencies=[Depends(require_token)])
+async def import_people() -> dict:
+    """Seed people from the Mac's address book (BlueBubbles /contact). Only adds
+    contacts not already present, so manual edits survive a re-import."""
+    ch = _imessage()
+    try:
+        raw = await ch.list_contacts()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"bluebubbles read failed: {exc}")
+    added = 0
+    for c in raw or []:
+        clean = clean_contact(c)
+        pid = clean["id"]
+        if not pid or people_svc.get(pid):
+            continue
+        handles = [
+            Handle(kind="email" if "@" in h else "phone", value=h) for h in clean["handles"]
+        ]
+        people_svc.create(
+            PersonCreate(id=pid, display_name=clean["name"], handles=handles, source="imported")
+        )
+        added += 1
+    return {"imported": added, "total": len(raw or [])}
+
+
+@app.get("/people/{pid}", response_model=Person)
+async def get_person(pid: str) -> Person:
+    p = people_svc.get(pid)
+    if p is None:
+        raise HTTPException(status_code=404, detail=f"person '{pid}' not found")
+    return p
+
+
+@app.patch("/people/{pid}", response_model=Person, dependencies=[Depends(require_token)])
+async def update_person(pid: str, patch: PersonUpdate) -> Person:
+    p = people_svc.update(pid, patch)
+    if p is None:
+        raise HTTPException(status_code=404, detail=f"person '{pid}' not found")
+    return p
+
+
+@app.delete("/people/{pid}", status_code=204, dependencies=[Depends(require_token)])
+async def delete_person(pid: str) -> Response:
+    if not people_svc.delete(pid):
+        raise HTTPException(status_code=404, detail=f"person '{pid}' not found")
+    return Response(status_code=204)
 
 
 @app.post("/webhooks/{channel_name}")

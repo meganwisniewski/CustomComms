@@ -146,6 +146,58 @@ def test_react_queues():
     assert r.status_code == 202
 
 
+AUTH = {"X-Hub-Token": "secret"}
+
+
+def test_people_crud_and_merge_update():
+    # create with rich fields
+    r = client.post("/people", headers=AUTH, json={
+        "display_name": "Jane Doe",
+        "tags": ["book club"],
+        "socials": [{"platform": "instagram", "value": "@jane"}],
+        "handles": [{"kind": "email", "value": "jane@example.com", "label": "work"}],
+    })
+    assert r.status_code == 201, r.text
+    p = r.json()
+    pid = p["id"]
+    assert p["display_name"] == "Jane Doe" and p["source"] == "manual"
+
+    # get + list
+    assert client.get(f"/people/{pid}").json()["tags"] == ["book club"]
+    assert any(x["id"] == pid for x in client.get("/people").json())
+
+    # patch merges: changed fields update, untouched fields persist
+    r2 = client.patch(f"/people/{pid}", headers=AUTH,
+                      json={"birthday": "Mar 14", "notes": "loves hiking"})
+    body = r2.json()
+    assert body["birthday"] == "Mar 14" and body["notes"] == "loves hiking"
+    assert body["tags"] == ["book club"], "untouched fields must survive a patch"
+    assert body["socials"][0]["value"] == "@jane"
+    assert body["updated_at"] >= body["created_at"]
+
+    # writes require the token
+    assert client.post("/people", json={"display_name": "x"}).status_code == 401
+    assert client.patch(f"/people/{pid}", json={"notes": "x"}).status_code == 401
+    assert client.delete(f"/people/{pid}").status_code == 401
+
+    # delete
+    assert client.delete(f"/people/{pid}", headers=AUTH).status_code == 204
+    assert client.get(f"/people/{pid}").status_code == 404
+
+
+def test_people_import_from_contacts():
+    r = client.post("/people/import", headers=AUTH)
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] >= 1
+    alex = next((p for p in client.get("/people").json() if p["display_name"] == "Alex Doe"), None)
+    assert alex is not None
+    assert alex["handles"][0]["value"] == "+15550000001"
+    assert alex["source"] == "imported"
+    # re-import is idempotent (doesn't duplicate or clobber)
+    again = client.post("/people/import", headers=AUTH).json()
+    assert again["imported"] == 0
+
+
 if __name__ == "__main__":
     failures = 0
     for _name in sorted(n for n in dict(globals()) if n.startswith("test_")):

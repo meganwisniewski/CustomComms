@@ -71,3 +71,60 @@ class HealthResponse(BaseModel):
     status: str
     channels: dict[str, str]
     queued: int
+
+
+# --- People / contacts (the hub as source-of-truth contact record) ----------
+# Deliberately flexible so new means-of-contact can be added without migrations.
+
+class Handle(BaseModel):
+    kind: str = "phone"          # phone | email | imessage | sms | other
+    value: str
+    label: str | None = None     # "mobile", "work", ...
+
+
+class Social(BaseModel):
+    platform: str                # instagram | linkedin | twitter | website | ...
+    value: str                   # handle or URL
+
+
+class Person(BaseModel):
+    id: str
+    display_name: str = ""
+    handles: list[Handle] = []
+    birthday: str | None = None
+    addresses: list[str] = []
+    socials: list[Social] = []
+    notes: str | None = None
+    tags: list[str] = []
+    links: list[str] = []        # conversation GUIDs / handle strings this person maps to
+    custom: dict[str, str] = {}  # arbitrary extra fields, future-proofing
+    source: str = "manual"       # manual | imported | derived
+    created_at: str
+    updated_at: str
+
+
+class PersonCreate(BaseModel):
+    id: str | None = None        # generated if omitted
+    display_name: str = ""
+    handles: list[Handle] = []
+    birthday: str | None = None
+    addresses: list[str] = []
+    socials: list[Social] = []
+    notes: str | None = None
+    tags: list[str] = []
+    links: list[str] = []
+    custom: dict[str, str] = {}
+    source: str = "manual"
+
+
+class PersonUpdate(BaseModel):
+    # Only fields sent are changed (merge semantics).
+    display_name: str | None = None
+    handles: list[Handle] | None = None
+    birthday: str | None = None
+    addresses: list[str] | None = None
+    socials: list[Social] | None = None
+    notes: str | None = None
+    tags: list[str] | None = None
+    links: list[str] | None = None
+    custom: dict[str, str] | None = None

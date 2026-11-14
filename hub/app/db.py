@@ -45,6 +45,15 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS idx_messages_due
     ON messages(status, next_attempt_at);
+
+CREATE TABLE IF NOT EXISTS people (
+    id           TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL DEFAULT '',
+    doc          TEXT NOT NULL,            -- full JSON Person record (source of truth)
+    source       TEXT NOT NULL DEFAULT 'manual',
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
 """
 
 # Columns added after the original schema shipped; applied to existing DBs on init.
@@ -201,3 +210,44 @@ def get(msg_id: int) -> dict[str, Any] | None:
     with _lock:
         row = _c().execute("SELECT * FROM messages WHERE id=?", (msg_id,)).fetchone()
     return dict(row) if row else None
+
+
+# --- people (contact records) -----------------------------------------------
+
+def person_upsert(*, id: str, display_name: str, doc: str, source: str,
+                  created_at: str, updated_at: str) -> None:
+    with _lock:
+        _c().execute(
+            """
+            INSERT INTO people (id, display_name, doc, source, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                display_name = excluded.display_name,
+                doc          = excluded.doc,
+                source       = excluded.source,
+                updated_at   = excluded.updated_at
+            """,
+            (id, display_name, doc, source, created_at, updated_at),
+        )
+        _c().commit()
+
+
+def person_get(id: str) -> dict[str, Any] | None:
+    with _lock:
+        row = _c().execute("SELECT * FROM people WHERE id=?", (id,)).fetchone()
+    return dict(row) if row else None
+
+
+def person_list() -> list[dict[str, Any]]:
+    with _lock:
+        rows = _c().execute(
+            "SELECT * FROM people ORDER BY display_name COLLATE NOCASE ASC, id ASC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def person_delete(id: str) -> bool:
+    with _lock:
+        cur = _c().execute("DELETE FROM people WHERE id=?", (id,))
+        _c().commit()
+    return cur.rowcount > 0

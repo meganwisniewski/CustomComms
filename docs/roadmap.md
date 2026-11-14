@@ -43,12 +43,26 @@ Custom client ──▶ Hub (FastAPI, Docker on the Pi) ──Tailscale──▶
   own read data: contact names resolved, SMS spam filtered, recency-sorted,
   reactions/replies captured with full fidelity. Verified against real data.
 
+- **M4 — Client MVP.** React client wired to real hub data (conversations,
+  threads, contacts; send + react), deployed from the Pi and served same-origin.
+  Per-person dedupe, spam filtering, chronological threads. _First daily-driver
+  build — live._
+
 ### 🔜 Next
-- **M4 — Client MVP.** Wire the React client to real hub data; deploy on the
-  Pi. _First daily-driver build._
-- **M5 — Full client features.** Board drag/resize, person detail, settings,
-  composer depth, calm nudges, hub status, empty states.
+- **Contacts — source of truth.** Make the hub the canonical record for every
+  means of contact (phones, emails, addresses, birthdays, socials, websites,
+  tags, notes). **Backend done** — `/people` CRUD + `/people/import`, flexible
+  JSON person records; the management UI is the remaining piece.
+- **M5 — Full client features.** Board drag-to-arrange, person detail + tags,
+  memoji-style avatars, settings, composer depth, calm "whose turn" nudges,
+  hub status, empty states.
 - **M6 — Go-live + hypercare.**
+
+### 🧪 Testing
+`scripts/test.sh` is the pre-push gate: a gitignored-source guard, hub unit +
+API tests (FastAPI TestClient + a faked BlueBubbles), the client build, and
+client unit tests (Vitest). Run `PYBIN=<venv python> scripts/test.sh` before
+every deploy.
 
 ## Operations
 
