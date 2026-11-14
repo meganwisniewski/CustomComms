@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { normalizeBoard, useStore } from "../../store/useStore";
-import { CONTACTS_BY_ID } from "../../data/sampleData";
 import { lastLine } from "../../lib/format";
 import { Avatar } from "../Avatar";
 import type { Contact } from "../../types";
@@ -38,7 +37,10 @@ function Tile({ c }: { c: Contact }) {
 
 export function BoardView() {
   const board = useStore((s) => s.board);
-  const groups = useMemo(() => normalizeBoard(board), [board]);
+  const contacts = useStore((s) => s.contacts);
+  const people = useMemo(() => contacts.filter((c) => c.lane === "people"), [contacts]);
+  const byId = useMemo(() => Object.fromEntries(contacts.map((c) => [c.id, c])), [contacts]);
+  const groups = useMemo(() => normalizeBoard(board, people), [board, people]);
   return (
     <>
       <div className="subcap">Your people, grouped into boards you control. (Drag-to-reorder lands in the next build.)</div>
@@ -50,7 +52,7 @@ export function BoardView() {
             </div>
             <div className="bgrid">
               {g.ids.map((id) => {
-                const c = CONTACTS_BY_ID[id];
+                const c = byId[id];
                 return c ? <Tile key={id} c={c} /> : null;
               })}
             </div>

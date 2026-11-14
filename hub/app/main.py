@@ -14,9 +14,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from . import db
 from .channels.registry import registry
@@ -71,6 +74,16 @@ app = FastAPI(
     version="0.4.0",
     summary="Channel-agnostic messaging hub with a store-and-forward delivery queue.",
     lifespan=lifespan,
+)
+
+# The client may run cross-origin in dev (Vite on another host/port). Writes are
+# still guarded by the X-Hub-Token header; CORS only governs the browser. On the
+# private tailnet, allowing any origin is an acceptable trade for simplicity.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -228,3 +241,10 @@ async def inbound_webhook(
         provider_id=inbound.provider_id,
     )
     return {"stored": True, "id": msg_id}
+
+
+# Serve the built client at the root — registered LAST so every API route above
+# takes precedence. Present only in the Docker image (guarded for local/dev runs).
+_client_dist = Path(__file__).resolve().parent.parent / "client_dist"
+if _client_dist.is_dir():
+    app.mount("/", StaticFiles(directory=str(_client_dist), html=True), name="client")

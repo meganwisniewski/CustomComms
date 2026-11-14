@@ -1,22 +1,27 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
-import { CONTACTS_BY_ID } from "../data/sampleData";
 import { lastLine } from "../lib/format";
 import { Avatar } from "./Avatar";
-import type { Message } from "../types";
 
 export function ConversationPanel() {
   const id = useStore((s) => s.activeContactId);
+  const contact = useStore((s) => s.contacts.find((x) => x.id === id));
   const openContact = useStore((s) => s.openContact);
+  const loadThread = useStore((s) => s.loadThread);
+  const sendMessage = useStore((s) => s.sendMessage);
   const close = () => openContact(null);
 
-  const [sent, setSent] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
 
+  // Load the real thread on open, then poll for new messages while it's open.
   useEffect(() => {
-    setSent([]);
+    if (!id) return;
     setDraft("");
+    loadThread(id);
+    const iv = setInterval(() => loadThread(id), 5000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -28,22 +33,20 @@ export function ConversationPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const msgs = contact?.thread ?? [];
   useEffect(() => {
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [id, sent]);
+  }, [id, msgs.length]);
 
-  if (!id) return null;
-  const c = CONTACTS_BY_ID[id];
-  if (!c) return null;
-
+  if (!id || !contact) return null;
+  const c = contact;
   const ll = lastLine(c);
-  const msgs = [...c.thread, ...sent];
 
   const send = () => {
     const t = draft.trim();
     if (!t) return;
-    setSent((s) => [...s, { from: "me", text: t, time: "now" }]);
+    sendMessage(c.id, t);
     setDraft("");
   };
 
@@ -71,7 +74,7 @@ export function ConversationPanel() {
             const showDiv = i === 0 || msgs[i - 1].time !== m.time;
             return (
               <Fragment key={i}>
-                {showDiv && <div className="daydiv">{m.time}</div>}
+                {showDiv && m.time && <div className="daydiv">{m.time}</div>}
                 <div className={"bub " + (m.from === "me" ? "me" : "them")}>{m.text}</div>
               </Fragment>
             );

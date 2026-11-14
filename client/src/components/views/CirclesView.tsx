@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../../store/useStore";
-import { PEOPLE } from "../../data/sampleData";
 import { Avatar } from "../Avatar";
 import type { Ring } from "../../types";
 
@@ -18,6 +17,8 @@ export function CirclesView() {
   const circlePos = useStore((s) => s.circlePos);
   const setCirclePos = useStore((s) => s.setCirclePos);
   const openContact = useStore((s) => s.openContact);
+  const contacts = useStore((s) => s.contacts);
+  const PEOPLE = useMemo(() => contacts.filter((c) => c.lane === "people"), [contacts]);
 
   const [dims, setDims] = useState({ w: 0, h: 0 });
   const [positions, setPositions] = useState<NodePos[]>([]);
@@ -51,7 +52,7 @@ export function CirclesView() {
       });
     });
     setPositions(next);
-  }, [dims, circlePos, radii]);
+  }, [dims, circlePos, radii, PEOPLE]);
 
   const onPointerDown = (e: React.PointerEvent, id: string) => {
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -123,7 +124,8 @@ export function CirclesView() {
           ))}
         {w > 0 && <div className="center">you</div>}
         {positions.map((p) => {
-          const c = PEOPLE.find((x) => x.id === p.id)!;
+          const c = PEOPLE.find((x) => x.id === p.id);
+          if (!c) return null;
           return (
             <div
               key={p.id}

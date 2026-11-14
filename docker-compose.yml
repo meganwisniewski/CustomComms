@@ -1,6 +1,12 @@
 services:
   hub:
-    build: ./hub
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Baked into the client bundle so it can authenticate writes to the hub.
+        # Pulled from .env (HUB_API_TOKEN) via compose variable substitution.
+        VITE_HUB_TOKEN: "${HUB_API_TOKEN:-}"
     image: customcomms-hub:latest
     container_name: customcomms-hub
     restart: unless-stopped
@@ -9,11 +15,10 @@ services:
     # (tailscale0) directly, with no Docker bridge NAT/forwarding in between.
     # This survives `tailscaled` restarts and reboots — the bridge-mode
     # container-to-tailnet path breaks when Tailscale reshuffles iptables.
-    # The app binds 0.0.0.0:8000 on the host, so inbound webhooks still land.
+    # The app binds 0.0.0.0:8000 on the host, serving both API and client.
     network_mode: host
-    # Run tini as PID 1 so zombie processes get reaped. Without this, the
-    # Docker HEALTHCHECK spawns a python process every 30s that uvicorn (the
-    # container's PID 1) never reaps, so <defunct> entries pile up indefinitely.
+    # Run tini as PID 1 so zombie processes get reaped (the HEALTHCHECK spawns a
+    # python process every 30s that uvicorn, the container's PID 1, never reaps).
     init: true
     volumes:
       - hub-data:/data

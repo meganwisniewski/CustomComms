@@ -21,6 +21,9 @@ export function App() {
   const theme = useStore((s) => s.theme);
   const calm = useStore((s) => s.calm);
   const view = useStore((s) => s.view);
+  const loadData = useStore((s) => s.loadData);
+  const status = useStore((s) => s.status);
+  const error = useStore((s) => s.error);
 
   useEffect(() => {
     const r = document.documentElement;
@@ -31,6 +34,13 @@ export function App() {
   useEffect(() => {
     document.documentElement.setAttribute("data-calm", calm ? "on" : "off");
   }, [calm]);
+
+  // Load conversations on start, then refresh on a gentle poll.
+  useEffect(() => {
+    loadData();
+    const iv = setInterval(loadData, 12000);
+    return () => clearInterval(iv);
+  }, [loadData]);
 
   const ViewComp = VIEWS[view];
 
@@ -43,7 +53,14 @@ export function App() {
           <ViewComp />
         </div>
         <p className="foot">
-          <b>Development build.</b> Sample data — your real people &amp; messages connect once the hub is live.
+          {status === "loading" && "Connecting to your hub…"}
+          {status === "error" && `Can't reach the hub — ${error}`}
+          {status === "ready" && (
+            <>
+              <b>Live.</b> Connected to your hub.
+            </>
+          )}
+          {status === "idle" && "Starting…"}
         </p>
       </div>
       <div className="overlay-root">

@@ -1,5 +1,4 @@
 import { useStore } from "../../store/useStore";
-import { CONTACTS } from "../../data/sampleData";
 import { ageLabel } from "../../lib/format";
 import { Avatar } from "../Avatar";
 import type { Lane } from "../../types";
@@ -12,12 +11,13 @@ const LANES: [Lane, string][] = [
 
 export function LanesView() {
   const open = useStore((s) => s.openContact);
+  const contacts = useStore((s) => s.contacts);
   return (
     <>
       <div className="subcap">Sorted by what it is — real people up top, noise tucked away.</div>
       <div className="lanes">
         {LANES.map(([lane, title]) => {
-          const items = CONTACTS.filter((c) => c.lane === lane);
+          const items = contacts.filter((c) => c.lane === lane);
           if (!items.length) return null;
           return (
             <div className="lane" key={lane}>

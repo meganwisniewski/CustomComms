@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/*.db
+.env
+**/.env.local
+**/.env.*.local
+.venv
+venv
+scratchpad

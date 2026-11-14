@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
-import { PEOPLE } from "../../data/sampleData";
 import { lastLine } from "../../lib/format";
 import { Avatar } from "../Avatar";
 
 export function FocusView() {
   const open = useStore((s) => s.openContact);
-  const list = PEOPLE.filter((c) => c.last === "them");
+  const contacts = useStore((s) => s.contacts);
+  const list = useMemo(
+    () => contacts.filter((c) => c.lane === "people" && c.last === "them"),
+    [contacts],
+  );
   const [idx, setIdx] = useState(0);
 
   const sub = <div className="subcap">One at a time — no list, no scrolling. Reply, or set it down for later.</div>;
@@ -28,6 +31,7 @@ export function FocusView() {
 
   const c = list[idx];
   const ll = lastLine(c);
+  const lastText = c.thread.length ? c.thread[c.thread.length - 1].text : c.snippet;
   return (
     <>
       {sub}
@@ -38,7 +42,7 @@ export function FocusView() {
         <div className="fcard">
           <Avatar contact={c} />
           <div className="fn">{c.name}</div>
-          <div className="fm">"{c.thread[c.thread.length - 1].text}"</div>
+          <div className="fm">"{lastText}"</div>
           <div className="fl">
             {ll.arrow} {ll.text} · {ll.t}
           </div>

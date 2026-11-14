@@ -33,6 +33,8 @@ export interface PersonMeta {
   cadence?: Cadence;
   birthday?: string;
   notes?: string;
+  /** Free-form user tags, e.g. "work:Deloitte", "Sydney's husband", "book club". */
+  tags?: string[];
 }
 
 export interface CirclePos {
