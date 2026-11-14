@@ -1,6 +1,30 @@
-/* CustomComms design tokens — ported from the approved mocks.
-   Calm, low-stimulation palette. Light / dark / calm (grayscale). */
+/* CustomComms design tokens.
+   Default = Synthwave (matches the Home Assistant wall tablet): deep purple
+   with hot-pink neon. Warm "light" and neutral "dark" remain available via the
+   theme toggle; "calm" desaturates whichever theme is active.
+
+   theme state: null = Synthwave (this :root), "light", or "dark". */
 :root {
+  --bg: #2A2139;
+  --surface: #34294F;
+  --surface-2: #241B2F;
+  --surface-3: #3D3159;
+  --fg: #FFFFFF;
+  --muted: rgba(255, 255, 255, 0.80);
+  --faint: #9B93B5;
+  --border: #433663;
+  --accent: #F92AAD;
+  --accent-fg: #FFFFFF;
+  --accent-soft: color-mix(in srgb, #F92AAD 22%, transparent);
+  --info: #36F9F6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 0 0 1px color-mix(in srgb, #F92AAD 45%, transparent), 0 8px 22px rgba(0, 0, 0, 0.5);
+  --radius: 16px;
+  color-scheme: dark;
+}
+
+/* Warm light — the original calm cream palette, for daytime. */
+:root[data-theme="light"] {
   --bg: #F4F2EE;
   --surface: #FFFFFF;
   --surface-2: #FBF9F6;
@@ -15,29 +39,10 @@
   --info: #5E7E86;
   --shadow: 0 1px 2px rgba(30, 25, 20, 0.035);
   --shadow-lift: 0 3px 12px rgba(30, 25, 20, 0.07);
-  --radius: 16px;
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #15171B;
-    --surface: #1D2025;
-    --surface-2: #22262C;
-    --surface-3: #2A2E36;
-    --fg: #ECEAE6;
-    --muted: #9BA1AB;
-    --faint: #6D747E;
-    --border: #2E333B;
-    --accent: #C892AC;
-    --accent-fg: #1A1013;
-    --accent-soft: #322530;
-    --info: #8FB0B8;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-lift: 0 8px 18px rgba(0, 0, 0, 0.5);
-    color-scheme: dark;
-  }
-}
+/* Neutral dark — muted, low-stimulation night palette. */
 :root[data-theme="dark"] {
   --bg: #15171B;
   --surface: #1D2025;
@@ -56,7 +61,8 @@
   color-scheme: dark;
 }
 
-/* Calm mode: grayscale + lower contrast, iOS-style low stimulation. */
+/* Calm mode: grayscale + lower contrast, iOS-style low stimulation.
+   Works on top of any theme — including Synthwave's neon. */
 :root[data-calm="on"] {
   --accent: #7E8A90;
   --accent-soft: color-mix(in srgb, #7E8A90 14%, transparent);

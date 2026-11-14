@@ -70,10 +70,12 @@ export const useStore = create<AppState>()(
       error: null,
 
       setView: (v) => set({ view: v }),
+      // Cycle Synthwave (null) -> light -> dark -> Synthwave.
       toggleTheme: () =>
         set((s) => {
-          const isDark = s.theme ? s.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-          return { theme: isDark ? "light" : "dark" };
+          const order: ThemeChoice[] = [null, "light", "dark"];
+          const next = order[(order.indexOf(s.theme ?? null) + 1) % order.length];
+          return { theme: next };
         }),
       toggleCalm: () => set((s) => ({ calm: !s.calm })),
       openContact: (id) => set({ activeContactId: id }),
