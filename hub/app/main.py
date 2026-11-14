@@ -163,7 +163,9 @@ async def conversations(limit: int = 50, include_filtered: bool = False,
     """
     ch = _imessage()
     limit = max(1, min(limit, 200))
-    fetch_n = min(limit * 4, 200)
+    # BlueBubbles' own "lastmessage" sort is unreliable, so fetch a wide window
+    # and sort locally by recency regardless of the requested limit.
+    fetch_n = 200
     try:
         chats = await ch.list_chats(limit=fetch_n, offset=0)
         cmap = await contacts_map(ch)
