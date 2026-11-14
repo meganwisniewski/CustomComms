@@ -54,10 +54,13 @@ export function convToContact(conv: HubConversation): Contact {
 }
 
 export function hubThreadToMessages(msgs: HubMessage[]): Message[] {
-  // The hub returns newest-first; the conversation panel renders oldest-first.
-  return [...msgs].reverse().map((m) => ({
-    from: m.from_me ? "me" : "them",
-    text: m.text,
-    time: dayLabel(m.date),
-  }));
+  // Sort by actual message date (iCloud-synced histories can arrive out of
+  // order), oldest-first for the conversation panel.
+  return [...msgs]
+    .sort((a, b) => (a.date ?? 0) - (b.date ?? 0))
+    .map((m) => ({
+      from: m.from_me ? "me" : "them",
+      text: m.text,
+      time: dayLabel(m.date),
+    }));
 }

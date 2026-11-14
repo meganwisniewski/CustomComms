@@ -199,10 +199,14 @@ async def conversation_messages(guid: str, limit: int = 50, offset: int = 0) -> 
     ch = _imessage()
     limit = max(1, min(limit, 200))
     try:
-        msgs = await ch.get_chat_messages(guid, limit=limit, offset=max(offset, 0))
+        # iCloud-synced histories can arrive out of date-order, so fetch a wider
+        # window and sort by date to return the true most-recent messages.
+        raw = await ch.get_chat_messages(guid, limit=min(limit * 2, 200), offset=max(offset, 0))
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"bluebubbles read failed: {exc}")
-    return [clean_message(m) for m in msgs]
+    msgs = [clean_message(m) for m in raw]
+    msgs.sort(key=lambda m: m["date"] or 0, reverse=True)
+    return msgs[:limit]
 
 
 @app.get("/contacts")

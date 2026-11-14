@@ -35,7 +35,7 @@ export function CirclesView() {
     return () => ro.disconnect();
   }, []);
 
-  const radii = useCallback((R: number) => [R * 0.34, R * 0.64, R * 0.96], []);
+  const radii = useCallback((R: number) => [R * 0.42, R * 0.69, R * 0.96], []);
 
   useEffect(() => {
     const { w, h } = dims;
@@ -47,7 +47,9 @@ export function CirclesView() {
       const grp = PEOPLE.filter((c) => (circlePos[c.id]?.c ?? c.closeness) === level);
       grp.forEach((c, idx) => {
         const r = rs[level - 1];
-        const ang = circlePos[c.id]?.a ?? -Math.PI / 2 + idx * ((2 * Math.PI) / Math.max(grp.length, 1));
+        // Always distribute evenly around the ring so faces never overlap;
+        // dragging changes which ring a person is in, not a free-form angle.
+        const ang = -Math.PI / 2 + idx * ((2 * Math.PI) / Math.max(grp.length, 1));
         next.push({ id: c.id, x: cx + r * Math.cos(ang), y: cy + r * Math.sin(ang), ring: level });
       });
     });
