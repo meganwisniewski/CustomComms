@@ -64,3 +64,19 @@ export function hubThreadToMessages(msgs: HubMessage[]): Message[] {
       time: dayLabel(m.date),
     }));
 }
+
+/**
+ * Collapse multiple chats for the same person (an iMessage *and* an SMS, or two
+ * numbers) into one row. Input is assumed newest-first, so the first occurrence
+ * of a resolved name — the most recent chat — is the one kept.
+ */
+export function dedupeContacts(contacts: Contact[]): Contact[] {
+  const seen = new Set<string>();
+  return contacts.filter((c) => {
+    const key = c.name.trim().toLowerCase();
+    if (!key) return true; // keep unnamed rows as-is (can't tell them apart)
+    if (seen.has(key)) return false; // a later duplicate of the same person
+    seen.add(key);
+    return true;
+  });
+}

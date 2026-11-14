@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CirclePos, Contact, Group, PersonMeta, Ring, ViewId } from "../types";
-import { DEFAULT_GROUPS } from "../data/sampleData";
 import { hub } from "../lib/hub";
-import { convToContact, hubThreadToMessages } from "../lib/adapt";
+import { convToContact, dedupeContacts, hubThreadToMessages } from "../lib/adapt";
+import { normalizeBoard } from "../lib/board";
 
 type ThemeChoice = "light" | "dark" | null;
 type Status = "idle" | "loading" | "ready" | "error";
@@ -46,18 +46,8 @@ interface AppState {
   reactTo: (id: string, targetGuid: string, reaction: string) => Promise<void>;
 }
 
-/** Ensure every person sits in exactly one group; append strays to the last. */
-export function normalizeBoard(board: Group[] | null, people: Contact[]): Group[] {
-  const known = new Set(people.map((p) => p.id));
-  const base: Group[] = (board ?? DEFAULT_GROUPS).map((g) => ({
-    name: g.name,
-    ids: g.ids.filter((id) => known.has(id)),
-  }));
-  const placed = new Set(base.flatMap((g) => g.ids));
-  const last = base[base.length - 1];
-  for (const p of people) if (!placed.has(p.id) && last) last.ids.push(p.id);
-  return base;
-}
+// Re-exported so existing imports (e.g. BoardView) keep working unchanged.
+export { normalizeBoard };
 
 const people = (contacts: Contact[]) => contacts.filter((c) => c.lane === "people");
 
@@ -131,16 +121,9 @@ export const useStore = create<AppState>()(
         set((s) => ({ status: s.contacts.length ? s.status : "loading" }));
         try {
           const convs = await hub.conversations(40);
-          // One row per person: the same contact often has both an iMessage and
-          // an SMS chat. Conversations arrive newest-first, so keep the first
-          // occurrence of each resolved name (i.e. the most recent chat).
-          const seen = new Set<string>();
-          const next = convs.map(convToContact).filter((c) => {
-            const key = c.name.trim().toLowerCase();
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
+          // One row per person (collapses an iMessage + SMS chat for the same
+          // contact); conversations arrive newest-first, so the most recent wins.
+          const next = dedupeContacts(convs.map(convToContact));
           set((s) => {
             // Keep already-loaded threads so an open conversation doesn't flicker.
             const prev = new Map(s.contacts.map((c) => [c.id, c.thread]));
