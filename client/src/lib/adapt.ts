@@ -53,16 +53,58 @@ export function convToContact(conv: HubConversation): Contact {
   };
 }
 
+// Tapback type (BlueBubbles associatedMessageType — numeric 2000-2005 / 3000-3005
+// for add/remove, or the named value) -> emoji.
+const REACTION_EMOJI: Record<string, string> = {
+  "2000": "❤️", "2001": "👍", "2002": "👎", "2003": "😂", "2004": "‼️", "2005": "❓",
+  love: "❤️", like: "👍", dislike: "👎", laugh: "😂", emphasize: "‼️", question: "❓",
+};
+
+function reactionEmoji(type: string | number | null): { emoji: string; removal: boolean } | null {
+  if (type === null || type === undefined) return null;
+  const s = String(type).trim();
+  if (/^300[0-5]$/.test(s)) return { emoji: REACTION_EMOJI[String(Number(s) - 1000)], removal: true };
+  if (s.startsWith("-")) {
+    const e = REACTION_EMOJI[s.slice(1)];
+    return e ? { emoji: e, removal: true } : null;
+  }
+  const e = REACTION_EMOJI[s];
+  return e ? { emoji: e, removal: false } : null;
+}
+
+/** A reaction target like "p:0/GUID" -> "GUID". */
+function targetGuid(ref: string): string {
+  return ref.includes("/") ? ref.split("/").pop()! : ref;
+}
+
 export function hubThreadToMessages(msgs: HubMessage[]): Message[] {
-  // Sort by actual message date (iCloud-synced histories can arrive out of
-  // order), oldest-first for the conversation panel.
-  return [...msgs]
-    .sort((a, b) => (a.date ?? 0) - (b.date ?? 0))
-    .map((m) => ({
-      from: m.from_me ? "me" : "them",
-      text: m.text,
-      time: dayLabel(m.date),
-    }));
+  // Oldest-first (iCloud-synced histories arrive out of order).
+  const sorted = [...msgs].sort((a, b) => (a.date ?? 0) - (b.date ?? 0));
+  const out: Message[] = [];
+  const byGuid = new Map<string, Message>();
+  const pending: { target: string; emoji: string; removal: boolean }[] = [];
+
+  for (const m of sorted) {
+    if (m.reaction_to) {
+      // A tapback: attach it to its target bubble, never render it as its own.
+      const r = reactionEmoji(m.reaction_type);
+      if (r) pending.push({ target: targetGuid(m.reaction_to), emoji: r.emoji, removal: r.removal });
+      continue;
+    }
+    const msg: Message = { from: m.from_me ? "me" : "them", text: m.text, time: dayLabel(m.date) };
+    out.push(msg);
+    byGuid.set(m.guid, msg);
+  }
+
+  for (const r of pending) {
+    const target = byGuid.get(r.target);
+    if (!target) continue;
+    const set = new Set(target.reactions ?? []);
+    if (r.removal) set.delete(r.emoji);
+    else set.add(r.emoji);
+    target.reactions = set.size ? [...set] : undefined;
+  }
+  return out;
 }
 
 /**

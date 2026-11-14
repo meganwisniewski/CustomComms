@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { normalizeBoard, useStore } from "../../store/useStore";
 import { lastLine } from "../../lib/format";
 import { Avatar } from "../Avatar";
@@ -12,6 +12,11 @@ function Tile({ c }: { c: Contact }) {
       className="tile"
       role="button"
       tabIndex={0}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", c.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
       onClick={() => open(c.id)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -38,15 +43,36 @@ function Tile({ c }: { c: Contact }) {
 export function BoardView() {
   const board = useStore((s) => s.board);
   const contacts = useStore((s) => s.contacts);
+  const moveToGroup = useStore((s) => s.moveToGroup);
   const people = useMemo(() => contacts.filter((c) => c.lane === "people"), [contacts]);
   const byId = useMemo(() => Object.fromEntries(contacts.map((c) => [c.id, c])), [contacts]);
   const groups = useMemo(() => normalizeBoard(board, people), [board, people]);
+  const [over, setOver] = useState<string | null>(null);
+
   return (
     <>
-      <div className="subcap">Your people, grouped into boards you control. (Drag-to-reorder lands in the next build.)</div>
+      <div className="subcap">Your people, grouped into boards you control. Drag a tile to move it between boards.</div>
       <div className="boards">
         {groups.map((g) => (
-          <div key={g.name}>
+          <div
+            key={g.name}
+            className={"bgroup" + (over === g.name ? " over" : "")}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (over !== g.name) setOver(g.name);
+            }}
+            onDragLeave={(e) => {
+              // Only clear when the pointer actually leaves this group's box.
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver((c) => (c === g.name ? null : c));
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const id = e.dataTransfer.getData("text/plain");
+              if (id) moveToGroup(id, g.name);
+              setOver(null);
+            }}
+          >
             <div className="bhead">
               {g.name} <span className="bcount">{g.ids.length}</span>
             </div>

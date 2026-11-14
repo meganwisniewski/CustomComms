@@ -117,6 +117,18 @@ img { max-width: 100%; }
 .bub { max-width: 78%; padding: 9px 13px; border-radius: 17px; font-size: 14px; line-height: 1.4; }
 .bub.them { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
 .bub.me { align-self: flex-end; background: var(--accent); color: var(--accent-fg); border-bottom-right-radius: 5px; }
+
+/* tapbacks rendered on their target bubble (not as separate messages) */
+.bub { position: relative; }
+.tapbacks { position: absolute; top: -13px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1px 6px; font-size: 12px; line-height: 18px; white-space: nowrap; box-shadow: 0 1px 5px rgba(0, 0, 0, .16); z-index: 1; }
+.bub.me .tapbacks { left: -10px; }
+.bub.them .tapbacks { right: -10px; }
+
+/* board: drag a tile between groups */
+.bgroup { border-radius: 12px; outline: 2px dashed transparent; outline-offset: 5px; transition: outline-color .12s ease; }
+.bgroup.over { outline-color: var(--accent); }
+.tile { cursor: grab; }
+.tile:active { cursor: grabbing; }
 .composer { border-top: 1px solid var(--border); padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
 .inputrow { display: flex; gap: 9px; align-items: flex-end; }
 .editor { flex: 1; min-height: 40px; max-height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 13px; padding: 9px 13px; font-size: 14px; background: var(--surface-2); outline: none; }

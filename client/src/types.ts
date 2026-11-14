@@ -8,6 +8,8 @@ export interface Message {
   from: "me" | "them";
   text: string;
   time: string;
+  /** Tapback emoji on this message (❤️ 👍 👎 😂 ‼️ ❓). */
+  reactions?: string[];
 }
 
 export interface Contact {

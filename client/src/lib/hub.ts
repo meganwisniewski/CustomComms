@@ -56,7 +56,7 @@ export interface HubMessage {
   reply_to: string | null;
   effect: string | null;
   reaction_to: string | null;
-  reaction_type: string | null;
+  reaction_type: string | number | null;
   has_attachments: boolean;
 }
 

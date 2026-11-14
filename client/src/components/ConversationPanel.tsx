@@ -75,7 +75,10 @@ export function ConversationPanel() {
             return (
               <Fragment key={i}>
                 {showDiv && m.time && <div className="daydiv">{m.time}</div>}
-                <div className={"bub " + (m.from === "me" ? "me" : "them")}>{m.text}</div>
+                <div className={"bub " + (m.from === "me" ? "me" : "them")}>
+                  {m.text}
+                  {m.reactions?.length ? <span className="tapbacks">{m.reactions.join("")}</span> : null}
+                </div>
               </Fragment>
             );
           })}

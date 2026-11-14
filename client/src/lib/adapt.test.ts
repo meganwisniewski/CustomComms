@@ -81,6 +81,27 @@ describe("hubThreadToMessages", () => {
     const out = hubThreadToMessages([msg({ text: "a", date: null }), msg({ text: "b", date: 100 })]);
     expect(out).toHaveLength(2);
   });
+
+  it("attaches tapbacks to their target bubble and hides the reaction message", () => {
+    const out = hubThreadToMessages([
+      msg({ guid: "base", text: "hello", date: 100 }),
+      msg({ guid: "rx", text: 'Loved "hello"', date: 200, reaction_to: "p:0/base", reaction_type: "love" }),
+      msg({ guid: "rx2", text: "Emphasized", date: 250, reaction_to: "base", reaction_type: 2004 }),
+    ]);
+    expect(out).toHaveLength(1); // reaction messages are not their own bubbles
+    expect(out[0].text).toBe("hello");
+    expect(out[0].reactions).toEqual(["❤️", "‼️"]);
+  });
+
+  it("removes a tapback when a 3000-range removal arrives", () => {
+    const out = hubThreadToMessages([
+      msg({ guid: "base", text: "hi", date: 100 }),
+      msg({ guid: "a", text: "x", date: 200, reaction_to: "base", reaction_type: 2000 }),
+      msg({ guid: "b", text: "x", date: 300, reaction_to: "base", reaction_type: 3000 }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].reactions).toBeUndefined();
+  });
 });
 
 describe("dedupeContacts", () => {
