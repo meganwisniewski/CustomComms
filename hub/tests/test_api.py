@@ -5,6 +5,7 @@ Fixtures are shaped like real BlueBubbles v1.9.11 responses. Runs standalone
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -135,6 +136,20 @@ def test_send_requires_token():
     body = {"channel": "imessage", "to": "iMessage;-;+1", "body": "hi"}
     assert client.post("/messages/send", json=body).status_code == 401
     assert client.post("/messages/send", json=body, headers={"X-Hub-Token": "secret"}).status_code == 202
+
+
+def test_send_persists_rich_for_future_channels():
+    # The composer sends a plain `body` (what iMessage delivers) plus a `rich`
+    # Markdown version that rides along in extras for channels that can use it.
+    r = client.post(
+        "/messages/send",
+        headers={"X-Hub-Token": "secret"},
+        json={"channel": "imessage", "to": "iMessage;-;+1", "body": "hi there", "rich": "**hi** there"},
+    )
+    assert r.status_code == 202, r.text
+    rec = client.get(f"/messages/{r.json()['id']}", headers={"X-Hub-Token": "secret"}).json()
+    assert rec["body"] == "hi there"  # iMessage still gets plain text
+    assert json.loads(rec["extras"])["rich"] == "**hi** there"
 
 
 def test_react_queues():

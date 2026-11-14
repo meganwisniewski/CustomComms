@@ -132,6 +132,7 @@ async def send_message(req: SendRequest) -> EnqueueResponse:
         "reply_to": req.reply_to,
         "effect": req.effect,
         "subject": req.subject,
+        "rich": req.rich,
     }.items() if v}
     msg_id = db.enqueue(channel=req.channel, peer=req.to, body=req.body,
                         title=req.title, extras=extras or None)

@@ -44,7 +44,7 @@ interface AppState {
 
   loadData: () => Promise<void>;
   loadThread: (id: string) => Promise<void>;
-  sendMessage: (id: string, text: string, replyTo?: string) => Promise<void>;
+  sendMessage: (id: string, text: string, replyTo?: string, rich?: string) => Promise<void>;
   reactTo: (id: string, targetGuid: string, reaction: string) => Promise<void>;
 }
 
@@ -153,7 +153,7 @@ export const useStore = create<AppState>()(
         }
       },
 
-      sendMessage: async (id, text, replyTo) => {
+      sendMessage: async (id, text, replyTo, rich) => {
         const t = text.trim();
         if (!t) return;
         // Optimistic append; the next poll reconciles with the real message.
@@ -163,7 +163,12 @@ export const useStore = create<AppState>()(
           ),
         }));
         try {
-          await hub.send(id, t, replyTo ? { reply_to: replyTo } : {});
+          // iMessage delivers the plain `body`; `rich` (Markdown) rides along for
+          // channels that support formatting. Only sent when formatting is present.
+          const opts: Record<string, unknown> = {};
+          if (replyTo) opts.reply_to = replyTo;
+          if (rich && rich !== t) opts.rich = rich;
+          await hub.send(id, t, opts);
         } catch {
           /* leave the optimistic bubble; a later poll will show its real state */
         }

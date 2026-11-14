@@ -23,6 +23,12 @@ class SendRequest(BaseModel):
     subject: str | None = Field(
         None, description="iMessage: bold subject line shown above the message body."
     )
+    # Channel-agnostic rich representation of the body (Markdown). iMessage sends
+    # the plain `body`; channels that support formatting (email, Slack, ...) can
+    # use this. Captured/persisted now so the composer is future-ready.
+    rich: str | None = Field(
+        None, description="Markdown/rich version of the body, for channels that support formatting."
+    )
 
 
 class ReactRequest(BaseModel):

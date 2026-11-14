@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { lastLine } from "../lib/format";
+import { htmlToMarkdown, isBlank } from "../lib/richtext";
 import { Avatar } from "./Avatar";
 
 // The six iMessage tapbacks, in the order iOS shows them.
@@ -22,18 +23,24 @@ export function ConversationPanel() {
   const reactTo = useStore((s) => s.reactTo);
   const close = () => openContact(null);
 
-  const [draft, setDraft] = useState("");
   // Which bubble's tapback/reply menu is open (by message guid).
   const [menuFor, setMenuFor] = useState<string | null>(null);
   // The message we're replying to, if any.
   const [replyTo, setReplyTo] = useState<{ guid: string; text: string } | null>(null);
+  // Composer empty? (drives placeholder + send-button enablement)
+  const [empty, setEmpty] = useState(true);
   const threadRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  const clearEditor = () => {
+    if (editorRef.current) editorRef.current.innerHTML = "";
+    setEmpty(true);
+  };
 
   // Load the real thread on open, then poll for new messages while it's open.
   useEffect(() => {
     if (!id) return;
-    setDraft("");
+    clearEditor();
     setMenuFor(null);
     setReplyTo(null);
     loadThread(id);
@@ -66,11 +73,30 @@ export function ConversationPanel() {
   const ll = lastLine(c);
 
   const send = () => {
-    const t = draft.trim();
-    if (!t) return;
-    sendMessage(c.id, t, replyTo?.guid);
-    setDraft("");
+    const el = editorRef.current;
+    if (!el || isBlank(el.innerHTML)) return;
+    const plain = el.innerText.trim(); // what iMessage delivers
+    if (!plain) return;
+    const rich = htmlToMarkdown(el.innerHTML); // Markdown, for channels that carry it
+    sendMessage(c.id, plain, replyTo?.guid, rich);
+    clearEditor();
     setReplyTo(null);
+  };
+
+  // Apply an inline format to the current selection. styleWithCSS=false makes
+  // execCommand emit tags (<b>, <i>, …) rather than inline styles, which our
+  // Markdown serializer expects.
+  const fmt = (cmd: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    try {
+      document.execCommand("styleWithCSS", false, "false");
+    } catch {
+      /* not all browsers expose styleWithCSS; tags are still the default */
+    }
+    document.execCommand(cmd);
+    setEmpty(isBlank(el.innerHTML));
   };
 
   const tapback = (guid: string, reaction: string) => {
@@ -83,6 +109,13 @@ export function ConversationPanel() {
     setMenuFor(null);
     editorRef.current?.focus();
   };
+
+  const FORMATS: { cmd: string; label: string; title: string }[] = [
+    { cmd: "bold", label: "B", title: "Bold (⌘B)" },
+    { cmd: "italic", label: "I", title: "Italic (⌘I)" },
+    { cmd: "underline", label: "U", title: "Underline (⌘U)" },
+    { cmd: "strikeThrough", label: "S", title: "Strikethrough" },
+  ];
 
   return (
     <>
@@ -145,14 +178,33 @@ export function ConversationPanel() {
               </button>
             </div>
           )}
+          <div className="fmtbar" role="toolbar" aria-label="Text formatting">
+            {FORMATS.map((f) => (
+              <button
+                key={f.cmd}
+                type="button"
+                className={"fmt f-" + f.cmd}
+                title={f.title}
+                aria-label={f.title}
+                // mousedown would blur the editor and drop the selection; prevent it
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => fmt(f.cmd)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
           <div className="inputrow">
-            <textarea
+            <div
               ref={editorRef}
-              className="editor"
-              style={{ resize: "none", fontFamily: "inherit" }}
-              placeholder={replyTo ? "Reply…" : "Message…"}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              className={"editor rich" + (empty ? " empty" : "")}
+              contentEditable
+              role="textbox"
+              aria-multiline="true"
+              aria-label="Message"
+              data-ph={replyTo ? "Reply…" : "Message…"}
+              suppressContentEditableWarning
+              onInput={() => setEmpty(isBlank(editorRef.current?.innerHTML ?? ""))}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -160,7 +212,7 @@ export function ConversationPanel() {
                 }
               }}
             />
-            <button className="send" onClick={send} aria-label="Send">
+            <button className="send" onClick={send} aria-label="Send" disabled={empty}>
               ↑
             </button>
           </div>
