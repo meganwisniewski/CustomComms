@@ -12,6 +12,8 @@ screen/bubble effects, subjects, and tapbacks — require the Private API
 """
 from __future__ import annotations
 
+import urllib.parse
+
 import httpx
 
 from ..config import settings
@@ -171,6 +173,43 @@ class IMessageChannel(Channel):
             "partIndex": part_index,
         }
         return await self._post("/api/v1/message/react", payload)
+
+    # --- reads (for the client-facing API) ----------------------------------
+
+    async def _get(self, path: str, params: dict | None = None):
+        q = self._params()
+        if params:
+            q.update(params)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(f"{self.base_url}{path}", params=q)
+        resp.raise_for_status()
+        return resp.json().get("data")
+
+    async def list_chats(self, limit: int = 100, offset: int = 0) -> list[dict]:
+        """BlueBubbles chat/query with the last message + participants populated."""
+        body = {
+            "limit": limit,
+            "offset": offset,
+            "with": ["lastMessage", "participants"],
+            "sort": "lastmessage",
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(f"{self.base_url}/api/v1/chat/query",
+                                     params=self._params(), json=body)
+        resp.raise_for_status()
+        return resp.json().get("data") or []
+
+    async def get_chat_messages(self, chat_guid: str, limit: int = 50, offset: int = 0) -> list[dict]:
+        """Messages in a chat, newest first. The GUID is URL-encoded for the path."""
+        enc = urllib.parse.quote(chat_guid, safe="")
+        data = await self._get(
+            f"/api/v1/chat/{enc}/message",
+            {"limit": limit, "offset": offset, "with": "handle", "sort": "DESC"},
+        )
+        return data or []
+
+    async def list_contacts(self) -> list[dict]:
+        return await self._get("/api/v1/contact") or []
 
     async def health(self) -> str:
         if not self.configured:

@@ -5,6 +5,9 @@ a background worker delivers it to the named channel with retries, so a message
 survives the target being temporarily unreachable (e.g. the iMessage Mac asleep
 or rebooting for updates). Reactions queue the same way via /messages/react.
 Inbound bridge events land on /webhooks/{channel}.
+
+The client reads conversations/messages/contacts via /conversations, /contacts —
+these proxy and clean BlueBubbles' own data (which holds full history).
 """
 from __future__ import annotations
 
@@ -12,11 +15,13 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 
 from . import db
 from .channels.registry import registry
 from .config import settings
+from .convo import clean_contact, clean_conversation, clean_message, contacts_map
 from .delivery import deliver
 from .schemas import (
     ChannelInfo,
@@ -63,7 +68,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CustomComms — Communication Hub",
-    version="0.3.0",
+    version="0.4.0",
     summary="Channel-agnostic messaging hub with a store-and-forward delivery queue.",
     lifespan=lifespan,
 )
@@ -73,6 +78,16 @@ def require_token(x_hub_token: str | None = Header(default=None)) -> None:
     """Guard write endpoints with a shared token when one is configured."""
     if settings.hub_api_token and x_hub_token != settings.hub_api_token:
         raise HTTPException(status_code=401, detail="invalid or missing X-Hub-Token")
+
+
+def _imessage():
+    """The iMessage channel, or a 503 if it isn't available for reads."""
+    ch = registry.get("imessage")
+    if ch is None:
+        raise HTTPException(status_code=503, detail="imessage channel not enabled")
+    if not ch.configured:
+        raise HTTPException(status_code=503, detail="imessage channel not configured")
+    return ch
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -134,6 +149,56 @@ async def get_message(msg_id: int) -> MessageRecord:
     if row is None:
         raise HTTPException(status_code=404, detail=f"message {msg_id} not found")
     return MessageRecord(**row)
+
+
+# --- client-facing reads (proxy + clean BlueBubbles data) -------------------
+
+@app.get("/conversations")
+async def conversations(limit: int = 50, include_filtered: bool = False,
+                        include_archived: bool = False) -> list[dict]:
+    """Recent conversations, newest first. Filters SMS spam/archived by default.
+
+    BlueBubbles holds thousands of (mostly spam) chats, so the hub fetches a
+    window, drops filtered/archived, sorts by recency, and returns the top N.
+    """
+    ch = _imessage()
+    limit = max(1, min(limit, 200))
+    fetch_n = min(limit * 4, 200)
+    try:
+        chats = await ch.list_chats(limit=fetch_n, offset=0)
+        cmap = await contacts_map(ch)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"bluebubbles read failed: {exc}")
+    out = [clean_conversation(c, cmap) for c in chats]
+    if not include_filtered:
+        out = [c for c in out if not c["filtered"]]
+    if not include_archived:
+        out = [c for c in out if not c["archived"]]
+    out.sort(key=lambda c: c["last_date"] or 0, reverse=True)
+    return out[:limit]
+
+
+@app.get("/conversations/{guid:path}/messages")
+async def conversation_messages(guid: str, limit: int = 50, offset: int = 0) -> list[dict]:
+    """Messages in one conversation, newest first."""
+    ch = _imessage()
+    limit = max(1, min(limit, 200))
+    try:
+        msgs = await ch.get_chat_messages(guid, limit=limit, offset=max(offset, 0))
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"bluebubbles read failed: {exc}")
+    return [clean_message(m) for m in msgs]
+
+
+@app.get("/contacts")
+async def contacts() -> list[dict]:
+    """All contacts (name + handles) for name/face resolution in the client."""
+    ch = _imessage()
+    try:
+        raw = await ch.list_contacts()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"bluebubbles read failed: {exc}")
+    return [clean_contact(c) for c in raw or []]
 
 
 @app.post("/webhooks/{channel_name}")
