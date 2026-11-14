@@ -131,7 +131,16 @@ export const useStore = create<AppState>()(
         set((s) => ({ status: s.contacts.length ? s.status : "loading" }));
         try {
           const convs = await hub.conversations(40);
-          const next = convs.map(convToContact);
+          // One row per person: the same contact often has both an iMessage and
+          // an SMS chat. Conversations arrive newest-first, so keep the first
+          // occurrence of each resolved name (i.e. the most recent chat).
+          const seen = new Set<string>();
+          const next = convs.map(convToContact).filter((c) => {
+            const key = c.name.trim().toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
           set((s) => {
             // Keep already-loaded threads so an open conversation doesn't flicker.
             const prev = new Map(s.contacts.map((c) => [c.id, c.thread]));
