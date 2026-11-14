@@ -34,9 +34,10 @@ EFFECTS = {
     "love": "com.apple.messages.effect.CKHeartEffect",
     "lasers": "com.apple.messages.effect.CKLasersEffect",
     "fireworks": "com.apple.messages.effect.CKFireworksEffect",
-    "shooting-star": "com.apple.messages.effect.CKShootingStarEffect",
     "celebration": "com.apple.messages.effect.CKSparklesEffect",
 }
+# NB: "shooting star" has no confirmed effectId in any BlueBubbles source, so it
+# is deliberately omitted. A raw "com.apple.*" id can still be passed through.
 
 # Tapback reactions BlueBubbles accepts. Prefix with "-" to remove one.
 REACTIONS = {"love", "like", "dislike", "laugh", "emphasize", "question"}
