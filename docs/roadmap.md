@@ -38,10 +38,12 @@ Custom client ──▶ Hub (FastAPI, Docker on the Pi) ──Tailscale──▶
   effects via the BlueBubbles Private API — all through the store-and-forward
   queue. Verified live on-device and against the official v1.9.11 docs.
   (Edit/unsend needs macOS Ventura+; the mini runs Monterey, so it's out of scope.)
+- **M3 — Client-facing read API.** `GET /conversations`,
+  `/conversations/{guid}/messages`, `/contacts` — proxy and clean BlueBubbles'
+  own read data: contact names resolved, SMS spam filtered, recency-sorted,
+  reactions/replies captured with full fidelity. Verified against real data.
 
 ### 🔜 Next
-- **M3 — Hub ↔ client API.** Conversation list, thread history, contacts, and
-  live updates for the client to consume.
 - **M4 — Client MVP.** Wire the React client to real hub data; deploy on the
   Pi. _First daily-driver build._
 - **M5 — Full client features.** Board drag/resize, person detail, settings,
