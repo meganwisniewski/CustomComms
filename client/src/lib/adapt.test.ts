@@ -90,6 +90,7 @@ describe("hubThreadToMessages", () => {
     ]);
     expect(out).toHaveLength(1); // reaction messages are not their own bubbles
     expect(out[0].text).toBe("hello");
+    expect(out[0].guid).toBe("base"); // carried through so the UI can react/reply
     expect(out[0].reactions).toEqual(["❤️", "‼️"]);
   });
 

@@ -6,6 +6,7 @@ import type { Contact } from "../../types";
 
 function Tile({ c }: { c: Contact }) {
   const open = useStore((s) => s.openContact);
+  const [expanded, setExpanded] = useState(false);
   const ll = lastLine(c);
   return (
     <div
@@ -32,7 +33,16 @@ function Tile({ c }: { c: Contact }) {
         </div>
         {c.unread && <span className="unread" />}
       </div>
-      <div className="snippet">{c.snippet}</div>
+      <div
+        className={"snippet" + (expanded ? " expanded" : "")}
+        title="Click to expand / collapse"
+        onClick={(e) => {
+          e.stopPropagation(); // don't open the conversation — just expand
+          setExpanded((x) => !x);
+        }}
+      >
+        {c.snippet}
+      </div>
       <div className="lastline">
         <span className="arw">{ll.arrow}</span> {ll.text} <span className="t">· {ll.t}</span>
       </div>
@@ -44,14 +54,24 @@ export function BoardView() {
   const board = useStore((s) => s.board);
   const contacts = useStore((s) => s.contacts);
   const moveToGroup = useStore((s) => s.moveToGroup);
+  const addGroup = useStore((s) => s.addGroup);
+  const removeGroup = useStore((s) => s.removeGroup);
   const people = useMemo(() => contacts.filter((c) => c.lane === "people"), [contacts]);
   const byId = useMemo(() => Object.fromEntries(contacts.map((c) => [c.id, c])), [contacts]);
   const groups = useMemo(() => normalizeBoard(board, people), [board, people]);
   const [over, setOver] = useState<string | null>(null);
+  const [newCat, setNewCat] = useState("");
+
+  const add = () => {
+    const n = newCat.trim();
+    if (!n) return;
+    addGroup(n);
+    setNewCat("");
+  };
 
   return (
     <>
-      <div className="subcap">Your people, grouped into boards you control. Drag a tile to move it between boards.</div>
+      <div className="subcap">Your people, grouped into boards you control. Drag a tile to move it; add your own categories.</div>
       <div className="boards">
         {groups.map((g) => (
           <div
@@ -63,8 +83,9 @@ export function BoardView() {
               if (over !== g.name) setOver(g.name);
             }}
             onDragLeave={(e) => {
-              // Only clear when the pointer actually leaves this group's box.
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver((c) => (c === g.name ? null : c));
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setOver((c) => (c === g.name ? null : c));
+              }
             }}
             onDrop={(e) => {
               e.preventDefault();
@@ -75,6 +96,16 @@ export function BoardView() {
           >
             <div className="bhead">
               {g.name} <span className="bcount">{g.ids.length}</span>
+              {groups.length > 1 && (
+                <button
+                  className="brm"
+                  aria-label={`Remove ${g.name}`}
+                  title={`Remove "${g.name}" — its people move to ${groups[groups.length - 1].name}`}
+                  onClick={() => removeGroup(g.name)}
+                >
+                  ×
+                </button>
+              )}
             </div>
             <div className="bgrid">
               {g.ids.map((id) => {
@@ -84,6 +115,23 @@ export function BoardView() {
             </div>
           </div>
         ))}
+
+        <div className="addcat">
+          <input
+            value={newCat}
+            placeholder="New category…"
+            onChange={(e) => setNewCat(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+          <button onClick={add} disabled={!newCat.trim()}>
+            Add category
+          </button>
+        </div>
       </div>
     </>
   );

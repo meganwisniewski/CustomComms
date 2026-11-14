@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeBoard } from "./board";
+import { normalizeBoard, addGroup, removeGroup } from "./board";
 import type { Contact, Group } from "../types";
 
 const person = (id: string): Contact => ({
@@ -27,5 +27,36 @@ describe("normalizeBoard", () => {
     const all = out.flatMap((g) => g.ids);
     expect(all.filter((x) => x === "a")).toHaveLength(1);
     expect(all.sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("addGroup / removeGroup", () => {
+  const ppl = [person("a"), person("b")];
+
+  it("inserts a new empty category before the catch-all group", () => {
+    const board: Group[] = [{ name: "Fam", ids: [] }, { name: "Friends", ids: [] }];
+    const out = addGroup(board, ppl, "Work");
+    expect(out.map((g) => g.name)).toEqual(["Fam", "Work", "Friends"]);
+    expect(out.find((g) => g.name === "Work")!.ids).toEqual([]);
+    // strays still land in the last (catch-all) group, not the new one
+    expect(out.find((g) => g.name === "Friends")!.ids.sort()).toEqual(["a", "b"]);
+  });
+
+  it("ignores blank and duplicate category names", () => {
+    const board: Group[] = [{ name: "Fam", ids: [] }, { name: "Friends", ids: [] }];
+    expect(addGroup(board, ppl, "  ").map((g) => g.name)).toEqual(["Fam", "Friends"]);
+    expect(addGroup(board, ppl, "fam").map((g) => g.name)).toEqual(["Fam", "Friends"]);
+  });
+
+  it("removes a category and re-buckets its people", () => {
+    const board: Group[] = [{ name: "Fam", ids: ["a"] }, { name: "Friends", ids: ["b"] }];
+    const out = removeGroup(board, ppl, "Fam");
+    expect(out.map((g) => g.name)).toEqual(["Friends"]);
+    expect(out[0].ids.sort()).toEqual(["a", "b"]); // 'a' re-bucketed
+  });
+
+  it("won't remove the final group", () => {
+    const board: Group[] = [{ name: "Only", ids: [] }];
+    expect(removeGroup(board, ppl, "Only").map((g) => g.name)).toEqual(["Only"]);
   });
 });

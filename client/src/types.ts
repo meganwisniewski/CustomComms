@@ -5,6 +5,8 @@ export type Ring = 1 | 2 | 3;
 export type Cadence = "weekly" | "2w" | "monthly" | "fewmonths" | "none";
 
 export interface Message {
+  /** BlueBubbles message GUID — needed to tapback or reply to this message. */
+  guid?: string;
   from: "me" | "them";
   text: string;
   time: string;

@@ -60,6 +60,11 @@ const REACTION_EMOJI: Record<string, string> = {
   love: "❤️", like: "👍", dislike: "👎", laugh: "😂", emphasize: "‼️", question: "❓",
 };
 
+/** Emoji for a reaction name ("love" -> "❤️"), for optimistic rendering. */
+export function emojiForReaction(name: string): string | undefined {
+  return REACTION_EMOJI[name];
+}
+
 function reactionEmoji(type: string | number | null): { emoji: string; removal: boolean } | null {
   if (type === null || type === undefined) return null;
   const s = String(type).trim();
@@ -91,7 +96,7 @@ export function hubThreadToMessages(msgs: HubMessage[]): Message[] {
       if (r) pending.push({ target: targetGuid(m.reaction_to), emoji: r.emoji, removal: r.removal });
       continue;
     }
-    const msg: Message = { from: m.from_me ? "me" : "them", text: m.text, time: dayLabel(m.date) };
+    const msg: Message = { guid: m.guid, from: m.from_me ? "me" : "them", text: m.text, time: dayLabel(m.date) };
     out.push(msg);
     byGuid.set(m.guid, msg);
   }

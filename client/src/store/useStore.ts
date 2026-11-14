@@ -2,8 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CirclePos, Contact, Group, PersonMeta, Ring, ViewId } from "../types";
 import { hub } from "../lib/hub";
-import { convToContact, dedupeContacts, hubThreadToMessages } from "../lib/adapt";
-import { normalizeBoard } from "../lib/board";
+import { convToContact, dedupeContacts, emojiForReaction, hubThreadToMessages } from "../lib/adapt";
+import { addGroup as addGroupFn, normalizeBoard, removeGroup as removeGroupFn } from "../lib/board";
 
 type ThemeChoice = "light" | "dark" | null;
 type Status = "idle" | "loading" | "ready" | "error";
@@ -36,13 +36,15 @@ interface AppState {
   getBoard: () => Group[];
   setBoard: (groups: Group[]) => void;
   moveToGroup: (id: string, groupName: string) => void;
+  addGroup: (name: string) => void;
+  removeGroup: (name: string) => void;
   setPersonMeta: (id: string, patch: Partial<PersonMeta>) => void;
   addTag: (id: string, tag: string) => void;
   removeTag: (id: string, tag: string) => void;
 
   loadData: () => Promise<void>;
   loadThread: (id: string) => Promise<void>;
-  sendMessage: (id: string, text: string) => Promise<void>;
+  sendMessage: (id: string, text: string, replyTo?: string) => Promise<void>;
   reactTo: (id: string, targetGuid: string, reaction: string) => Promise<void>;
 }
 
@@ -97,6 +99,8 @@ export const useStore = create<AppState>()(
           if (target) target.ids.push(id);
           return { board: b };
         }),
+      addGroup: (name) => set((s) => ({ board: addGroupFn(s.board, people(s.contacts), name) })),
+      removeGroup: (name) => set((s) => ({ board: removeGroupFn(s.board, people(s.contacts), name) })),
       setPersonMeta: (id, patch) =>
         set((s) => ({ personMeta: { ...s.personMeta, [id]: { ...s.personMeta[id], ...patch } } })),
       addTag: (id, tag) =>
@@ -149,7 +153,7 @@ export const useStore = create<AppState>()(
         }
       },
 
-      sendMessage: async (id, text) => {
+      sendMessage: async (id, text, replyTo) => {
         const t = text.trim();
         if (!t) return;
         // Optimistic append; the next poll reconciles with the real message.
@@ -159,13 +163,32 @@ export const useStore = create<AppState>()(
           ),
         }));
         try {
-          await hub.send(id, t);
+          await hub.send(id, t, replyTo ? { reply_to: replyTo } : {});
         } catch {
           /* leave the optimistic bubble; a later poll will show its real state */
         }
       },
 
       reactTo: async (id, targetGuid, reaction) => {
+        // Optimistic: drop the emoji onto the target bubble now; the next poll
+        // reconciles against what BlueBubbles actually recorded.
+        const emoji = emojiForReaction(reaction);
+        if (emoji) {
+          set((s) => ({
+            contacts: s.contacts.map((c) =>
+              c.id !== id
+                ? c
+                : {
+                    ...c,
+                    thread: c.thread.map((m) =>
+                      m.guid === targetGuid
+                        ? { ...m, reactions: [...new Set([...(m.reactions ?? []), emoji])] }
+                        : m,
+                    ),
+                  },
+            ),
+          }));
+        }
         try {
           await hub.react(id, targetGuid, reaction);
         } catch {
