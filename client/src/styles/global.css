@@ -201,6 +201,12 @@ img { max-width: 100%; }
 .lrow:hover { background: var(--surface-2); }
 .lrow .nm { font-size: 14px; font-weight: 600; }
 .lrow .sn { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lrow .rt { margin-left: auto; font-size: 11px; color: var(--faint); white-space: nowrap; }
+.lrow .rt { font-size: 11px; color: var(--faint); white-space: nowrap; }
+/* "Your turn" — a calm, informational cue that the reply is on you. */
+.lanetools { display: flex; justify-content: center; margin: 2px 0 12px; }
+.lrow.awaits { box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); }
+.lrow.awaits:hover { background: var(--accent-soft); }
+.rmeta { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; white-space: nowrap; }
+.turn { font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); padding: 1px 7px; border-radius: 999px; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
