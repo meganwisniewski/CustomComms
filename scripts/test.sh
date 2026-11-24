@@ -21,7 +21,7 @@ fi
 echo "ok"
 
 echo "== hub: unit + API tests =="
-( cd hub && "$PYBIN" tests/test_delivery.py && "$PYBIN" tests/test_convo.py && "$PYBIN" tests/test_api.py )
+( cd hub && "$PYBIN" tests/test_delivery.py && "$PYBIN" tests/test_convo.py && "$PYBIN" tests/test_suggest.py && "$PYBIN" tests/test_api.py )
 
 echo "== client: typecheck + production build =="
 ( cd client && npm run build >/dev/null && echo "build ok" )

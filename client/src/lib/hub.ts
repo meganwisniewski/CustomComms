@@ -18,7 +18,7 @@ function authHeaders(json = false): Record<string, string> {
 
 async function getJSON<T>(path: string): Promise<T> {
   const r = await fetch(BASE + path, { headers: authHeaders() });
-  if (!r.ok) throw new Error(`GET ${path} -> HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`GET ${path} -> HTTP ${r.status}: ${await r.text().catch(() => "")}`);
   return r.json() as Promise<T>;
 }
 
@@ -76,4 +76,6 @@ export const hub = {
     postJSON(`/messages/send`, { channel: "imessage", to, body, ...opts }),
   react: (to: string, target: string, reaction: string) =>
     postJSON(`/messages/react`, { channel: "imessage", to, target, reaction }),
+  suggest: (guid: string) =>
+    getJSON<{ suggestions: string[] }>(`/conversations/${encodeURIComponent(guid)}/suggest`),
 };

@@ -21,7 +21,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from . import db, people as people_svc
+from . import db, people as people_svc, suggest
 from .channels.registry import registry
 from .config import settings
 from .convo import clean_contact, clean_conversation, clean_message, contacts_map
@@ -37,6 +37,7 @@ from .schemas import (
     PersonUpdate,
     ReactRequest,
     SendRequest,
+    SuggestResponse,
 )
 
 log = logging.getLogger("hub")
@@ -212,6 +213,61 @@ async def conversation_messages(guid: str, limit: int = 50, offset: int = 0) -> 
     msgs = [clean_message(m) for m in raw]
     msgs.sort(key=lambda m: m["date"] or 0, reverse=True)
     return msgs[:limit]
+
+
+@app.get("/conversations/{guid:path}/suggest", response_model=SuggestResponse,
+         dependencies=[Depends(require_token)])
+async def suggest_reply(guid: str) -> SuggestResponse:
+    """Draft 1-3 replies in the user's voice (opt-in; needs ANTHROPIC_API_KEY)."""
+    if not suggest.api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="suggestions not configured: set ANTHROPIC_API_KEY on the hub",
+        )
+    ch = _imessage()
+    try:
+        raw = await ch.get_chat_messages(guid, limit=40, offset=0)
+        chats = await ch.list_chats(limit=60, offset=0)
+        cmap = await contacts_map(ch)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"bluebubbles read failed: {exc}")
+
+    # Conversation context: real messages only (no tapbacks), oldest-first, last ~20.
+    msgs = [clean_message(m) for m in raw]
+    convo = [m for m in msgs if not m["reaction_to"] and (m["text"] or "").strip()]
+    convo.sort(key=lambda m: m["date"] or 0)
+    thread = convo[-20:]
+
+    # Voice samples: my messages in this thread + my recent last-messages elsewhere.
+    samples: list[str] = [m["text"].strip() for m in convo if m["from_me"] and m["text"].strip()]
+    for c in chats:
+        lm = c.get("lastMessage")
+        if not lm:
+            continue
+        lc = clean_message(lm)
+        if lc["from_me"] and lc["reaction_to"] is None and lc["text"].strip():
+            samples.append(lc["text"].strip())
+    # Dedupe (case-insensitive), keep sendable-length lines, cap the set.
+    seen: set[str] = set()
+    voice: list[str] = []
+    for s in samples:
+        if 2 <= len(s) <= 200 and s.lower() not in seen:
+            seen.add(s.lower())
+            voice.append(s)
+    voice = voice[:40]
+
+    target = next((c for c in chats if c.get("guid") == guid), None)
+    name = clean_conversation(target, cmap)["name"] if target else "them"
+
+    try:
+        suggestions = await suggest.generate(name, thread, voice)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=502, detail=f"claude api error {exc.response.status_code}: {exc.response.text[:200]}")
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"claude api request failed: {exc}")
+    return SuggestResponse(suggestions=suggestions)
 
 
 @app.get("/contacts")

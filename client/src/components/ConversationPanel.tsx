@@ -21,6 +21,8 @@ export function ConversationPanel() {
   const loadThread = useStore((s) => s.loadThread);
   const sendMessage = useStore((s) => s.sendMessage);
   const reactTo = useStore((s) => s.reactTo);
+  const pendingDraft = useStore((s) => s.pendingDraft);
+  const setPendingDraft = useStore((s) => s.setPendingDraft);
   const close = () => openContact(null);
 
   // Which bubble's tapback/reply menu is open (by message guid).
@@ -43,6 +45,12 @@ export function ConversationPanel() {
     clearEditor();
     setMenuFor(null);
     setReplyTo(null);
+    // If opened with a suggested reply, prefill the composer with it (once).
+    if (pendingDraft && editorRef.current) {
+      editorRef.current.innerText = pendingDraft;
+      setEmpty(false);
+      setPendingDraft(null);
+    }
     loadThread(id);
     const iv = setInterval(() => loadThread(id), 5000);
     return () => clearInterval(iv);

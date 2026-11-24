@@ -190,6 +190,17 @@ img { max-width: 100%; }
 .facts button:hover { border-color: var(--accent); color: var(--fg); }
 .facts button.pri { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 .fhint { font-size: 11.5px; color: var(--faint); }
+/* Focus: suggested reply in your voice */
+.sugbtn { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.sugbtn:hover { border-color: var(--accent); }
+.sugbtn:disabled { opacity: .6; cursor: default; }
+.sugbox { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.sughd { font-size: 11px; color: var(--muted); text-align: center; }
+.sugopt { text-align: left; padding: 10px 13px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--fg); font: inherit; font-size: 14px; line-height: 1.35; cursor: pointer; }
+.sugopt:hover { border-color: var(--accent); background: var(--surface-2); }
+.suglink { align-self: center; background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px; }
+.suglink:disabled { opacity: .6; cursor: default; }
+.sugerr { font-size: 12px; color: var(--muted); text-align: center; }
 .fdone { text-align: center; padding: 40px 16px; color: var(--muted); }
 .fdone .big { font-size: 40px; } .fdone h3 { font-size: 19px; margin-top: 10px; }
 

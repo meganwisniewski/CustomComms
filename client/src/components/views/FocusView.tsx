@@ -1,20 +1,60 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { lastLine } from "../../lib/format";
+import { hub } from "../../lib/hub";
 import { Avatar } from "../Avatar";
+
+function suggestError(e: unknown): string {
+  const m = String(e instanceof Error ? e.message : e);
+  if (m.includes("HTTP 503"))
+    return "Suggested replies aren't set up yet — add an Anthropic API key to the hub.";
+  if (m.includes("HTTP 502"))
+    return "Couldn't reach the draft service — check the hub's API key, then try again.";
+  return "Couldn't draft a reply — try again.";
+}
 
 export function FocusView() {
   const open = useStore((s) => s.openContact);
+  const openWithDraft = useStore((s) => s.openWithDraft);
   const contacts = useStore((s) => s.contacts);
   const list = useMemo(
     () => contacts.filter((c) => c.lane === "people" && c.last === "them"),
     [contacts],
   );
   const [idx, setIdx] = useState(0);
+  const current = idx < list.length ? list[idx] : null;
 
-  const sub = <div className="subcap">One at a time — no list, no scrolling. Reply, or set it down for later.</div>;
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [sugErr, setSugErr] = useState<string | null>(null);
 
-  if (idx >= list.length) {
+  // Reset drafts whenever the focused card changes.
+  useEffect(() => {
+    setSuggestions([]);
+    setSugErr(null);
+    setSuggesting(false);
+  }, [current?.id]);
+
+  const draftReply = async () => {
+    if (!current) return;
+    setSuggesting(true);
+    setSugErr(null);
+    try {
+      const r = await hub.suggest(current.id);
+      setSuggestions(r.suggestions ?? []);
+      if (!r.suggestions?.length) setSugErr("No suggestion came back — try again.");
+    } catch (e) {
+      setSugErr(suggestError(e));
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  const sub = (
+    <div className="subcap">One at a time — no list, no scrolling. Reply, or set it down for later.</div>
+  );
+
+  if (!current) {
     return (
       <>
         {sub}
@@ -29,7 +69,7 @@ export function FocusView() {
     );
   }
 
-  const c = list[idx];
+  const c = current;
   const ll = lastLine(c);
   const lastText = c.thread.length ? c.thread[c.thread.length - 1].text : c.snippet;
   return (
@@ -47,6 +87,26 @@ export function FocusView() {
             {ll.arrow} {ll.text} · {ll.t}
           </div>
         </div>
+
+        {suggestions.length > 0 ? (
+          <div className="sugbox">
+            <div className="sughd">In your voice · tap to edit &amp; send</div>
+            {suggestions.map((s, i) => (
+              <button key={i} className="sugopt" onClick={() => openWithDraft(c.id, s)}>
+                {s}
+              </button>
+            ))}
+            <button className="suglink" onClick={draftReply} disabled={suggesting}>
+              {suggesting ? "Thinking…" : "↻ Regenerate"}
+            </button>
+          </div>
+        ) : (
+          <button className="sugbtn" onClick={draftReply} disabled={suggesting}>
+            {suggesting ? "Drafting…" : "✨ Suggest a reply"}
+          </button>
+        )}
+        {sugErr && <div className="sugerr">{sugErr}</div>}
+
         <div className="facts">
           <button className="pri" onClick={() => open(c.id)}>
             Reply

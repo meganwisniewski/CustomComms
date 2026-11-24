@@ -25,10 +25,16 @@ interface AppState {
   status: Status;
   error: string | null;
 
+  // A draft to prefill the composer with when a conversation opens (e.g. a
+  // suggested reply picked on the Focus tab). Consumed once, then cleared.
+  pendingDraft: string | null;
+
   setView: (v: ViewId) => void;
   toggleTheme: () => void;
   toggleCalm: () => void;
   openContact: (id: string | null) => void;
+  openWithDraft: (id: string, text: string) => void;
+  setPendingDraft: (text: string | null) => void;
 
   setAvatar: (id: string, emoji: string) => void;
   setCirclePos: (id: string, pos: CirclePos) => void;
@@ -60,6 +66,7 @@ export const useStore = create<AppState>()(
       theme: null,
       calm: false,
       activeContactId: null,
+      pendingDraft: null,
       avatarOverrides: {},
       circlePos: {},
       board: null,
@@ -78,7 +85,9 @@ export const useStore = create<AppState>()(
           return { theme: next };
         }),
       toggleCalm: () => set((s) => ({ calm: !s.calm })),
-      openContact: (id) => set({ activeContactId: id }),
+      openContact: (id) => set({ activeContactId: id, pendingDraft: null }),
+      openWithDraft: (id, text) => set({ activeContactId: id, pendingDraft: text }),
+      setPendingDraft: (text) => set({ pendingDraft: text }),
 
       setAvatar: (id, emoji) =>
         set((s) => ({ avatarOverrides: { ...s.avatarOverrides, [id]: emoji } })),

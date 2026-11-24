@@ -68,6 +68,10 @@ class MessageRecord(BaseModel):
     updated_at: str
 
 
+class SuggestResponse(BaseModel):
+    suggestions: list[str] = []
+
+
 class ChannelInfo(BaseModel):
     name: str
     configured: bool
