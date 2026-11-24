@@ -155,7 +155,12 @@ img { max-width: 100%; }
 .addcat input { flex: 1; max-width: 260px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); font: inherit; font-size: 13px; }
 .addcat button { padding: 9px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--fg); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .addcat button:disabled { opacity: .5; cursor: default; }
-.composer { border-top: 1px solid var(--border); padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+.composer { position: relative; border-top: 1px solid var(--border); padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+.fmt.emoji { font-size: 15px; }
+.fmt.emoji.on { border-color: var(--accent); background: var(--accent-soft); }
+.emojipanel { position: absolute; bottom: calc(100% - 2px); left: 12px; right: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lift); padding: 8px; display: flex; flex-wrap: wrap; gap: 2px; max-height: 190px; overflow-y: auto; z-index: 20; }
+.emojipanel button { border: none; background: none; font-size: 20px; line-height: 1; padding: 6px; border-radius: 8px; cursor: pointer; }
+.emojipanel button:hover { background: var(--surface-2); }
 .inputrow { display: flex; gap: 9px; align-items: flex-end; }
 .editor { flex: 1; min-height: 40px; max-height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 13px; padding: 9px 13px; font-size: 14px; background: var(--surface-2); outline: none; }
 .editor:focus { border-color: var(--accent); }

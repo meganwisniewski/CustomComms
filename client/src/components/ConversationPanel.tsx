@@ -14,6 +14,15 @@ const REACTIONS: { name: string; emoji: string }[] = [
   { name: "question", emoji: "❓" },
 ];
 
+// A compact, curated emoji set for the in-composer picker (covers everyday use;
+// the OS emoji keyboard still works too).
+const EMOJIS = [
+  "😀","😂","🥰","😍","😊","😉","😎","🤔","😅","🙃","😭","😔","😴","🤗","🙄","😳",
+  "🥳","😇","🤩","😬","😘","🥹","😩","🫠","❤️","🧡","💛","💚","💙","💜","🖤","🤍",
+  "💕","💔","🫶","👍","👎","👏","🙌","🙏","👋","🤝","💪","✌️","🤞","🔥","✨","🎉",
+  "💯","⭐","☀️","🌙","🌸","🍀","☕","🍕","🎂","🐶","🐱","📸","💬","✅","❓","❗",
+];
+
 export function ConversationPanel() {
   const id = useStore((s) => s.activeContactId);
   const contact = useStore((s) => s.contacts.find((x) => x.id === id));
@@ -31,6 +40,7 @@ export function ConversationPanel() {
   const [replyTo, setReplyTo] = useState<{ guid: string; text: string } | null>(null);
   // Composer empty? (drives placeholder + send-button enablement)
   const [empty, setEmpty] = useState(true);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +55,7 @@ export function ConversationPanel() {
     clearEditor();
     setMenuFor(null);
     setReplyTo(null);
+    setEmojiOpen(false);
     // If opened with a suggested reply, prefill the composer with it (once).
     if (pendingDraft && editorRef.current) {
       editorRef.current.innerText = pendingDraft;
@@ -89,6 +100,16 @@ export function ConversationPanel() {
     sendMessage(c.id, plain, replyTo?.guid, rich);
     clearEditor();
     setReplyTo(null);
+    setEmojiOpen(false);
+  };
+
+  // Insert an emoji at the caret (editor keeps focus via mousedown preventDefault).
+  const insertEmoji = (emo: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    document.execCommand("insertText", false, emo);
+    setEmpty(isBlank(el.innerHTML));
   };
 
   // Apply an inline format to the current selection. styleWithCSS=false makes
@@ -177,6 +198,21 @@ export function ConversationPanel() {
           })}
         </div>
         <div className="composer">
+          {emojiOpen && (
+            <div className="emojipanel" role="listbox" aria-label="Emoji">
+              {EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  // keep the editor's focus/caret so insertText lands in place
+                  onMouseDown={(ev) => ev.preventDefault()}
+                  onClick={() => insertEmoji(e)}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
           {replyTo && (
             <div className="replyctx">
               <span className="rlabel">↩ Replying to</span>
@@ -201,6 +237,17 @@ export function ConversationPanel() {
                 {f.label}
               </button>
             ))}
+            <button
+              type="button"
+              className={"fmt emoji" + (emojiOpen ? " on" : "")}
+              title="Emoji"
+              aria-label="Emoji"
+              aria-pressed={emojiOpen}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setEmojiOpen((o) => !o)}
+            >
+              😊
+            </button>
           </div>
           <div className="inputrow">
             <div
