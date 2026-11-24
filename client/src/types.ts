@@ -22,6 +22,8 @@ export interface Contact {
   closeness: Ring;
   /** days since the last message in the thread */
   age: number;
+  /** last message time (ms epoch); used to tie a "handled" mark to that message */
+  lastDate?: number | null;
   last: LastWho;
   unread: boolean;
   snippet: string;

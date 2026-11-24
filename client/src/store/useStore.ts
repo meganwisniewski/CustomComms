@@ -4,6 +4,7 @@ import type { CirclePos, Contact, Group, PersonMeta, Ring, ViewId } from "../typ
 import { hub } from "../lib/hub";
 import { convToContact, dedupeContacts, emojiForReaction, hubThreadToMessages, mergePendingSends } from "../lib/adapt";
 import { addGroup as addGroupFn, normalizeBoard, removeGroup as removeGroupFn } from "../lib/board";
+import { turnMarker } from "../lib/turn";
 
 type ThemeChoice = "light" | "dark" | null;
 type Status = "idle" | "loading" | "ready" | "error";
@@ -19,6 +20,9 @@ interface AppState {
   circlePos: Record<string, CirclePos>;
   board: Group[] | null;
   personMeta: Record<string, PersonMeta>;
+  // Conversations marked "no reply needed", keyed to the last message's timestamp
+  // so a newer message clears the mark automatically.
+  handledTurn: Record<string, number>;
 
   // --- hub data (not persisted; loaded each session) ---
   contacts: Contact[];
@@ -47,6 +51,8 @@ interface AppState {
   setPersonMeta: (id: string, patch: Partial<PersonMeta>) => void;
   addTag: (id: string, tag: string) => void;
   removeTag: (id: string, tag: string) => void;
+  markHandled: (id: string) => void;
+  unmarkHandled: (id: string) => void;
 
   loadData: () => Promise<void>;
   loadThread: (id: string) => Promise<void>;
@@ -71,6 +77,7 @@ export const useStore = create<AppState>()(
       circlePos: {},
       board: null,
       personMeta: {},
+      handledTurn: {},
 
       contacts: [],
       status: "idle",
@@ -130,6 +137,17 @@ export const useStore = create<AppState>()(
               [id]: { ...s.personMeta[id], tags: cur.filter((x) => x !== tag) },
             },
           };
+        }),
+      markHandled: (id) =>
+        set((s) => {
+          const c = s.contacts.find((x) => x.id === id);
+          if (!c) return {};
+          return { handledTurn: { ...s.handledTurn, [id]: turnMarker(c) } };
+        }),
+      unmarkHandled: (id) =>
+        set((s) => {
+          const { [id]: _drop, ...rest } = s.handledTurn;
+          return { handledTurn: rest };
         }),
 
       loadData: async () => {
@@ -227,6 +245,7 @@ export const useStore = create<AppState>()(
         circlePos: s.circlePos,
         board: s.board,
         personMeta: s.personMeta,
+        handledTurn: s.handledTurn,
       }),
     },
   ),

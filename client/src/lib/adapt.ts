@@ -46,6 +46,7 @@ export function convToContact(conv: HubConversation): Contact {
     lane: laneFor(conv),
     closeness: 3, // default outer ring; the user curates placement via circlePos
     age: daysSince(conv.last_date),
+    lastDate: conv.last_date,
     last: who,
     unread: conv.unread,
     snippet,

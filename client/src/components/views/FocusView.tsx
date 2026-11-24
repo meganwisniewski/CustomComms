@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { lastLine } from "../../lib/format";
+import { needsTurn } from "../../lib/turn";
 import { hub } from "../../lib/hub";
 import { Avatar } from "../Avatar";
 
@@ -17,9 +18,11 @@ export function FocusView() {
   const open = useStore((s) => s.openContact);
   const openWithDraft = useStore((s) => s.openWithDraft);
   const contacts = useStore((s) => s.contacts);
+  const handledTurn = useStore((s) => s.handledTurn);
+  const markHandled = useStore((s) => s.markHandled);
   const list = useMemo(
-    () => contacts.filter((c) => c.lane === "people" && c.last === "them"),
-    [contacts],
+    () => contacts.filter((c) => needsTurn(c, handledTurn)),
+    [contacts, handledTurn],
   );
   const [idx, setIdx] = useState(0);
   const current = idx < list.length ? list[idx] : null;
@@ -125,8 +128,12 @@ export function FocusView() {
           <button className="pri" onClick={() => open(c.id)}>
             Reply
           </button>
-          <button onClick={() => setIdx((i) => i + 1)}>Later</button>
-          <button onClick={() => setIdx((i) => i + 1)}>Done</button>
+          <button title="Skip for now — show again later" onClick={() => setIdx((i) => i + 1)}>
+            Later
+          </button>
+          <button title="No reply needed — clear it" onClick={() => markHandled(c.id)}>
+            Done
+          </button>
         </div>
         <div className="fhint">one decision, then the next.</div>
       </div>

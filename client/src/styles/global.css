@@ -228,6 +228,9 @@ img { max-width: 100%; }
 .lrow.awaits { box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); }
 .lrow.awaits:hover { background: var(--accent-soft); }
 .rmeta { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; white-space: nowrap; }
+.turnrow { display: flex; align-items: center; gap: 6px; }
 .turn { font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); padding: 1px 7px; border-radius: 999px; }
+.handled { width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 12px; line-height: 1; cursor: pointer; }
+.handled:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
