@@ -78,7 +78,9 @@ async def generate(name: str, thread: list[dict], samples: list[str], steer: str
         raise RuntimeError("ANTHROPIC_API_KEY not set")
     body = {
         "model": model(),
-        "max_tokens": 400,
+        # Generous ceiling: the model thinks (adaptive) before writing, and a tight
+        # budget can be spent entirely on thinking, leaving no reply text.
+        "max_tokens": 1024,
         "system": SYSTEM,
         "messages": [{"role": "user", "content": build_user_prompt(name, thread, samples, steer)}],
     }
