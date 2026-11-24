@@ -73,9 +73,12 @@ img { max-width: 100%; }
 .ringc { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border: 1.5px dashed var(--border); border-radius: 50%; pointer-events: none; }
 .ringlbl { position: absolute; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--faint); letter-spacing: .04em; text-transform: uppercase; font-weight: 600; pointer-events: none; }
 .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font-weight: 700; font-size: 11px; z-index: 2; }
-.node { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: grab; user-select: none; z-index: 3; }
-.node.dragging { z-index: 9; cursor: grabbing; }
+.node { position: absolute; transform: translate(-50%, -50%); transform-origin: center; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: grab; user-select: none; z-index: 3; transition: transform .08s ease-out; }
+.node.dragging { cursor: grabbing; transition: none; }
 .node .av { box-shadow: 0 0 0 3px var(--surface), 0 2px 8px rgba(0, 0, 0, .18); }
+/* Dock-style fisheye: names stay hidden until a face is magnified under the pointer. */
+.node .nm { display: none; }
+.node.mag .nm { display: block; }
 .node .nm { font-size: 11px; font-weight: 600; color: var(--fg); max-width: 74px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--bg); padding: 0 3px; border-radius: 4px; }
 .node .nd { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); position: absolute; top: -1px; right: -1px; box-shadow: 0 0 0 2px var(--surface); }
 
