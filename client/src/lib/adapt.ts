@@ -113,6 +113,22 @@ export function hubThreadToMessages(msgs: HubMessage[]): Message[] {
 }
 
 /**
+ * Keep optimistic sent messages (appended locally, so they have no `guid`) that
+ * the server thread hasn't picked up yet, matched by text. Without this, a
+ * just-sent bubble vanishes on the next poll — before BlueBubbles has indexed
+ * it — and only reappears a few seconds later. Pending sends append after the
+ * server messages (they're the most recent) and drop once the real message with
+ * the same text arrives.
+ */
+export function mergePendingSends(server: Message[], current: Message[]): Message[] {
+  const serverTexts = new Set(server.map((m) => m.text.trim()));
+  const pending = current.filter(
+    (m) => !m.guid && m.from === "me" && m.text.trim() && !serverTexts.has(m.text.trim()),
+  );
+  return [...server, ...pending];
+}
+
+/**
  * Collapse multiple chats for the same person (an iMessage *and* an SMS, or two
  * numbers) into one row. Input is assumed newest-first, so the first occurrence
  * of a resolved name — the most recent chat — is the one kept.

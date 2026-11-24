@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CirclePos, Contact, Group, PersonMeta, Ring, ViewId } from "../types";
 import { hub } from "../lib/hub";
-import { convToContact, dedupeContacts, emojiForReaction, hubThreadToMessages } from "../lib/adapt";
+import { convToContact, dedupeContacts, emojiForReaction, hubThreadToMessages, mergePendingSends } from "../lib/adapt";
 import { addGroup as addGroupFn, normalizeBoard, removeGroup as removeGroupFn } from "../lib/board";
 
 type ThemeChoice = "light" | "dark" | null;
@@ -155,9 +155,13 @@ export const useStore = create<AppState>()(
 
       loadThread: async (id) => {
         try {
-          const thread = hubThreadToMessages(await hub.messages(id, 50));
+          const server = hubThreadToMessages(await hub.messages(id, 50));
           set((s) => ({
-            contacts: s.contacts.map((c) => (c.id === id ? { ...c, thread } : c)),
+            // Preserve just-sent bubbles until the hub indexes them, so a sent
+            // message doesn't flicker out and back between polls.
+            contacts: s.contacts.map((c) =>
+              c.id === id ? { ...c, thread: mergePendingSends(server, c.thread) } : c,
+            ),
           }));
         } catch {
           /* keep whatever thread we have */

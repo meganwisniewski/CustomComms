@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { convToContact, hubThreadToMessages, dedupeContacts, daysSince } from "./adapt";
+import { convToContact, hubThreadToMessages, dedupeContacts, daysSince, mergePendingSends } from "./adapt";
+import type { Message } from "../types";
 import type { HubConversation, HubMessage } from "./hub";
 import type { Contact } from "../types";
 
@@ -122,6 +123,31 @@ describe("dedupeContacts", () => {
 
   it("keeps unnamed rows as distinct", () => {
     expect(dedupeContacts([person("g1", ""), person("g2", "")])).toHaveLength(2);
+  });
+});
+
+describe("mergePendingSends", () => {
+  const m = (text: string, from: "me" | "them", guid?: string): Message => ({ text, from, time: "Today", guid });
+
+  it("keeps an optimistic sent bubble the server hasn't indexed yet", () => {
+    const server = [m("hi", "them", "g1")];
+    const current = [m("hi", "them", "g1"), m("on my way", "me")]; // optimistic, no guid
+    const out = mergePendingSends(server, current);
+    expect(out.map((x) => x.text)).toEqual(["hi", "on my way"]);
+  });
+
+  it("drops the optimistic bubble once the real message arrives", () => {
+    const server = [m("hi", "them", "g1"), m("on my way", "me", "g2")];
+    const current = [m("hi", "them", "g1"), m("on my way", "me")]; // optimistic dup
+    const out = mergePendingSends(server, current);
+    expect(out.filter((x) => x.text === "on my way")).toHaveLength(1);
+    expect(out[1].guid).toBe("g2"); // the real one, not the optimistic
+  });
+
+  it("ignores server-side (guid'd) and inbound messages as pending", () => {
+    const server: Message[] = [];
+    const current = [m("theirs", "them"), m("real", "me", "g9")];
+    expect(mergePendingSends(server, current)).toEqual([]);
   });
 });
 
