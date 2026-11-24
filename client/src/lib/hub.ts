@@ -76,6 +76,9 @@ export const hub = {
     postJSON(`/messages/send`, { channel: "imessage", to, body, ...opts }),
   react: (to: string, target: string, reaction: string) =>
     postJSON(`/messages/react`, { channel: "imessage", to, target, reaction }),
-  suggest: (guid: string) =>
-    getJSON<{ suggestions: string[] }>(`/conversations/${encodeURIComponent(guid)}/suggest`),
+  suggest: (guid: string, steer?: string) =>
+    getJSON<{ suggestions: string[] }>(
+      `/conversations/${encodeURIComponent(guid)}/suggest` +
+        (steer && steer.trim() ? `?steer=${encodeURIComponent(steer.trim())}` : ""),
+    ),
 };

@@ -22,6 +22,16 @@ def test_build_prompt_includes_samples_and_convo():
     assert "Draft my reply to Alex's last message." in p
 
 
+def test_build_prompt_includes_steer_when_given():
+    p = build_user_prompt("Alex", [{"from_me": False, "text": "hi"}], [], steer="politely decline")
+    assert "WHAT I WANT THE REPLY TO DO (follow this, in my voice): politely decline" in p
+
+
+def test_build_prompt_omits_steer_when_blank():
+    p = build_user_prompt("Alex", [{"from_me": False, "text": "hi"}], [], steer="   ")
+    assert "WHAT I WANT THE REPLY TO DO" not in p
+
+
 def test_build_prompt_without_samples_falls_back_to_them():
     p = build_user_prompt("", [{"from_me": False, "text": "hi"}], [])
     assert "HOW I WRITE" not in p

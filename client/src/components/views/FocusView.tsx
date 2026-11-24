@@ -27,12 +27,14 @@ export function FocusView() {
   const [suggesting, setSuggesting] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [sugErr, setSugErr] = useState<string | null>(null);
+  const [steer, setSteer] = useState("");
 
   // Reset drafts whenever the focused card changes.
   useEffect(() => {
     setSuggestions([]);
     setSugErr(null);
     setSuggesting(false);
+    setSteer("");
   }, [current?.id]);
 
   const draftReply = async () => {
@@ -40,7 +42,7 @@ export function FocusView() {
     setSuggesting(true);
     setSugErr(null);
     try {
-      const r = await hub.suggest(current.id);
+      const r = await hub.suggest(current.id, steer);
       setSuggestions(r.suggestions ?? []);
       if (!r.suggestions?.length) setSugErr("No suggestion came back — try again.");
     } catch (e) {
@@ -88,22 +90,34 @@ export function FocusView() {
           </div>
         </div>
 
-        {suggestions.length > 0 ? (
+        <div className="sugctl">
+          <input
+            className="sugsteer"
+            placeholder="Optional — tell it what to say…"
+            value={steer}
+            onChange={(e) => setSteer(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                draftReply();
+              }
+            }}
+          />
+          <button className="sugbtn" onClick={draftReply} disabled={suggesting}>
+            {suggesting ? "…" : suggestions.length ? "↻" : "✨ Suggest"}
+          </button>
+        </div>
+        {suggestions.length > 0 && (
           <div className="sugbox">
-            <div className="sughd">In your voice · tap to edit &amp; send</div>
+            <div className="sughd">
+              {steer.trim() ? "Shaped to your note" : "In your voice"} · tap to edit &amp; send
+            </div>
             {suggestions.map((s, i) => (
               <button key={i} className="sugopt" onClick={() => openWithDraft(c.id, s)}>
                 {s}
               </button>
             ))}
-            <button className="suglink" onClick={draftReply} disabled={suggesting}>
-              {suggesting ? "Thinking…" : "↻ Regenerate"}
-            </button>
           </div>
-        ) : (
-          <button className="sugbtn" onClick={draftReply} disabled={suggesting}>
-            {suggesting ? "Drafting…" : "✨ Suggest a reply"}
-          </button>
         )}
         {sugErr && <div className="sugerr">{sugErr}</div>}
 

@@ -22,6 +22,8 @@ SYSTEM = (
     "- Match the user's voice: typical length, punctuation, capitalization, emoji use, warmth.\n"
     "- Keep it to a natural text reply — short; no greetings/sign-offs/names unless the user uses them.\n"
     "- Reply to the OTHER person's most recent message.\n"
+    "- If a 'WHAT I WANT THE REPLY TO DO' instruction is given, follow that intent"
+    " while still sounding like the user.\n"
     "- No markdown, no surrounding quotes, no explanation or preamble.\n"
     "- Offer 1 to 3 distinct options, each on its own line, and nothing else."
 )
@@ -36,7 +38,7 @@ def model() -> str:
     return (os.getenv("SUGGEST_MODEL") or "").strip() or DEFAULT_MODEL
 
 
-def build_user_prompt(name: str, thread: list[dict], samples: list[str]) -> str:
+def build_user_prompt(name: str, thread: list[dict], samples: list[str], steer: str = "") -> str:
     who = name or "them"
     lines: list[str] = []
     if samples:
@@ -49,6 +51,9 @@ def build_user_prompt(name: str, thread: list[dict], samples: list[str]) -> str:
         if txt:
             lines.append(f"{'Me' if m.get('from_me') else who}: {txt}")
     lines.append("")
+    if steer.strip():
+        lines.append(f"WHAT I WANT THE REPLY TO DO (follow this, in my voice): {steer.strip()}")
+        lines.append("")
     lines.append(f"Draft my reply to {who}'s last message.")
     return "\n".join(lines)
 
@@ -67,7 +72,7 @@ def parse_suggestions(text: str) -> list[str]:
     return out[:3]
 
 
-async def generate(name: str, thread: list[dict], samples: list[str]) -> list[str]:
+async def generate(name: str, thread: list[dict], samples: list[str], steer: str = "") -> list[str]:
     key = api_key()
     if not key:
         raise RuntimeError("ANTHROPIC_API_KEY not set")
@@ -75,7 +80,7 @@ async def generate(name: str, thread: list[dict], samples: list[str]) -> list[st
         "model": model(),
         "max_tokens": 400,
         "system": SYSTEM,
-        "messages": [{"role": "user", "content": build_user_prompt(name, thread, samples)}],
+        "messages": [{"role": "user", "content": build_user_prompt(name, thread, samples, steer)}],
     }
     headers = {
         "x-api-key": key,

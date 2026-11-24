@@ -217,8 +217,12 @@ async def conversation_messages(guid: str, limit: int = 50, offset: int = 0) -> 
 
 @app.get("/conversations/{guid:path}/suggest", response_model=SuggestResponse,
          dependencies=[Depends(require_token)])
-async def suggest_reply(guid: str) -> SuggestResponse:
-    """Draft 1-3 replies in the user's voice (opt-in; needs ANTHROPIC_API_KEY)."""
+async def suggest_reply(guid: str, steer: str | None = None) -> SuggestResponse:
+    """Draft 1-3 replies in the user's voice (opt-in; needs ANTHROPIC_API_KEY).
+
+    Optional `steer` lets the user ask for a specific kind of reply, e.g.
+    "politely decline and suggest next week".
+    """
     if not suggest.api_key():
         raise HTTPException(
             status_code=503,
@@ -260,7 +264,7 @@ async def suggest_reply(guid: str) -> SuggestResponse:
     name = clean_conversation(target, cmap)["name"] if target else "them"
 
     try:
-        suggestions = await suggest.generate(name, thread, voice)
+        suggestions = await suggest.generate(name, thread, voice, (steer or "")[:300])
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except httpx.HTTPStatusError as exc:
